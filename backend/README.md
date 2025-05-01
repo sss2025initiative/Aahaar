@@ -49,7 +49,7 @@ aahaar-backend/
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/aahaar-backend.git
+   git clone https://github.com/sss2025initiative/Aahaar.git 
    cd aahaar-backend
    ```
 
@@ -74,4 +74,4 @@ aahaar-backend/
 
 ## 📄 License
 
-Licensed under the MIT License.
+Licensed under the MIT License..
