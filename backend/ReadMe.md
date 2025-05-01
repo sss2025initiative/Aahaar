@@ -74,4 +74,4 @@ aahaar-backend/
 
 ## 📄 License
 
-Licensed under the MIT License.
+
