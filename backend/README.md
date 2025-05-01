@@ -1,5 +1,5 @@
 
-# ![AAHAAR Logo](logo.png)
+![LOGO](backend/logo.png)
 # AAHAAR: Backend
 
 > This is the backend structure for the AAHAAR project, which handles user management, authentication, and utility services using Node.js, Express, and MongoDB.
