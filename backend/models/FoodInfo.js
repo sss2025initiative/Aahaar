@@ -5,7 +5,7 @@ const FoodInfoSchema = new mongoose.Schema({
         required:true
     },
     Category:{
-        type :["Baked Goods","Produce","Prepared Foods","Dairy","Other"],        
+        type :["Baked Goods","Produce","Prepared Foods","Dairy","Fruits","Vegetables","Grains","Other"],        
         required:true
     },
     quantity:{

@@ -20,13 +20,21 @@ const createFoodInfo = asyncHandler(async (req, res) => {
         unit: foodInfo.unit,
         expiryDate: foodInfo.expiryDate,
         Description: foodInfo.Description,
+        message:"FoodInfo created successfully"
     });
 });
 
 //get all FoodInfo
 const getAllFoodInfo = asyncHandler(async (req, res) => {
     const foodInfo = await FoodInfo.find();
-    res.status(200).json(foodInfo);
+    if(!foodInfo){
+        res.status(404);
+        throw new Error("FoodInfo not found");
+    }
+    return res.status(200).json({
+        foodInfo,
+        message:"FoodInfo fetched successfully"
+    });
 });
 
 //get single FoodInfo
@@ -47,7 +55,8 @@ const updateFoodInfo = asyncHandler(async (req, res) => {
         req.body,
         { new: true }
     );
-    res.status(200).json(updatedFoodInfo);
+    res.status(200).json({updatedFoodInfo,
+        message:"FoodInfo updated successfully"});
 });
 
 //delete FoodInfo
@@ -57,8 +66,8 @@ const deleteFoodInfo = asyncHandler(async (req, res) => {
         res.status(404);
         throw new Error("FoodInfo not found");
     }
-    await foodInfo.remove();
-    res.status(200).json({ message: "FoodInfo deleted" });
+    await FoodInfo.findByIdAndDelete(req.params.id);
+    res.status(200).json({foodInfo, message: "FoodInfo deleted Sucessfully" });
 });
 
 export { createFoodInfo, getAllFoodInfo, getFoodInfo, updateFoodInfo, deleteFoodInfo };

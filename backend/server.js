@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import { errorHandler, notFound } from './middlewares/errorHandler.js';
 import userRoutes from "./routes/userRoutes.js";
+import FoodInfoRoute from './routes/foodinfoRoute.js'
 
 dotenv.config();
 const port = process.env.PORT || 5000;
@@ -17,6 +18,7 @@ app.use(cookieParser());
 
 // Routes
 app.use('/aahar/users', userRoutes);
+app.use('/aahar/foodinfo',FoodInfoRoute);
 
 // Error handling middleware should be after all routes
 app.use(notFound);
