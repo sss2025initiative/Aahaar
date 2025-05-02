@@ -17,6 +17,11 @@ const creatContactDetails=asyncHandler(async(req,res)=>{
 
 const getContactDetails=asyncHandler(async(req,res)=>{
     const ContactDetail=await ContactDetails.find();
+    if(!ContactDetail){
+        return res.status(400).json({
+            message:"ContactDetails not found"
+        });
+    }
     return res.status(200).json({
         message:"ContactDetails fetched Successfully",
         ContactDetail
