@@ -1,5 +1,6 @@
 import User from "../models/userModel.js";
 import generateToken from "../utils/token.js";
+import asyncHandler from "../middlewares/asyncHandler.js";
 
 //authenticate User
 const authUser = asyncHandler(async (req, res) => {
@@ -16,6 +17,7 @@ const authUser = asyncHandler(async (req, res) => {
       email: user.email,
       age: user.age,
       isAdmin: user.isAdmin,
+      token: generateToken(res, user._id),
     });
   } else {
     res.status(401);
@@ -49,6 +51,8 @@ const registerUser = asyncHandler(async (req, res) => {
       surname: user.surname,
       email: user.email,
       age: user.age,
+      token: generateToken(res, user._id),
+      message: "User registered successfully",
     });
   } else {
     res.status(404);
