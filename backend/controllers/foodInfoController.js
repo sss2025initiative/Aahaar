@@ -1,4 +1,4 @@
-import FoodInfo from "../models/foodInfoModel";
+import FoodInfo from "../models/foodInfoModel.js";
 import asyncHandler from "express-async-handler";
 const CreateFoodInfo=asyncHandler(async(req , res)=>{
     const {
