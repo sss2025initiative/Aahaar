@@ -1,6 +1,6 @@
-import { Mongoose } from "mongoose";
+import { mongoose } from "mongoose";
 
-const ngoSchema = Mongoose.Schema({
+const ngoSchema = mongoose.Schema({
     ngoName: {
         type: String,
         required: true,
@@ -57,5 +57,5 @@ const ngoSchema = Mongoose.Schema({
 );
 
 
-const Ngo = Mongoose.model("Ngo", ngoSchema)
+const Ngo = mongoose.model("Ngo", ngoSchema)
 export default Ngo;

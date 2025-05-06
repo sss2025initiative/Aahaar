@@ -1,11 +1,7 @@
 import dotenv from 'dotenv';
+dotenv.config({path: "./utils/.env" });
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-dotenv.config({ path: path.join(__dirname, '.env') });
 import express from 'express';
 import connectDb from './utils/db.js';
 import cookieParser from 'cookie-parser';
@@ -31,6 +27,8 @@ app.use('/aahar/ngo', ngoRoutes);
 // Error handling middleware should be after all routes
 app.use(notFound);
 app.use(errorHandler);
+
+console.log(process.env.PORT);
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
