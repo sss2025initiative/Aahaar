@@ -1,5 +1,5 @@
-import asyncHandler from "../middlewares/asyncHandler";
-import Ngo from "../models/ngoModel";
+import asyncHandler from "../middlewares/asyncHandler.js";
+import Ngo from "../models/ngoModel.js";
 
 // @desc    Upload NGO documents
 const uploadNgoDocumentsContrller = asyncHandler(async (req, res) => {

@@ -1,12 +1,19 @@
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, '.env') });
 import express from 'express';
 import connectDb from './utils/db.js';
-import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import { errorHandler, notFound } from './middlewares/errorHandler.js';
 import userRoutes from "./routes/userRoutes.js";
 import foodInfoRoutes from "./routes/FoodInfoRoute.js";
+import ngoRoutes from "./routes/ngoRoutes.js";
 
-dotenv.config();
 const port = process.env.PORT || 5000;
 
 connectDb();
@@ -19,6 +26,7 @@ app.use(cookieParser());
 // Routes
 app.use('/aahar/users', userRoutes);
 app.use('/aahar/foodInfo', foodInfoRoutes);
+app.use('/aahar/ngo', ngoRoutes);
 
 // Error handling middleware should be after all routes
 app.use(notFound);
