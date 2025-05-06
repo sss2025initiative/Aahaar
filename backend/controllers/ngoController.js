@@ -1,6 +1,7 @@
 import asyncHandler from "../middlewares/asyncHandler";
 import Ngo from "../models/ngoModel";
 
+// @desc    Upload NGO documents
 const uploadNgoDocumentsContrller = asyncHandler(async (req, res) => {
   const files = req.files;
   if (files) {
@@ -21,9 +22,10 @@ const uploadNgoDocumentsContrller = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Register NGO details   
 const ngoDetailsController = asyncHandler(async (req, res) => {
   const { ngoName, ngoEmail, ngoPhone, ngoAddress, ngoCity, ngoState, ngoPurpose, ngoWebsite, certificationOfRegistration, ownerPanCard, prevousWorkReport } = req.body;
-  
+
   const alreadyRegisteredNgo = await Ngo.find({ ngoEmail });
   if (alreadyRegisteredNgo.length > 0) {
     return res.status(400).json({ message: "NGO already registered" });
@@ -51,7 +53,7 @@ const ngoDetailsController = asyncHandler(async (req, res) => {
   }
 })
 
-
+// @desc    Get NGO details based on city 
 const getNgoDetailsBasedOnCity = asyncHandler(async (req, res) => {
   const { ngoCity } = req.params;
   const ngoDetails = await Ngo.find({ ngoCity });
