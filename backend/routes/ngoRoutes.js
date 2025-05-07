@@ -1,5 +1,5 @@
 import express from 'express';
-import { uploadNgoDocuments } from '../utils/s3Config.js';
+import { uploadNgoDocuments } from '../s3Config.js';
 import { ngoDetailsController, uploadNgoDocumentsContrller } from '../controllers/ngoController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 

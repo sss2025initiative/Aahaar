@@ -1,6 +1,9 @@
 import AWS from 'aws-sdk';
 import multerS3 from 'multer-s3';
 import multer from 'multer';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Detailed logging of environment variables
 console.log('AWS Configuration Check:');
@@ -11,6 +14,7 @@ console.log('AWS_BUCKET_NAME:', process.env.AWS_BUCKET_NAME || 'Missing');
 
 
 let uploadNgoDocuments;
+let uploadFoodImages;
 
 try {
     AWS.config.update({
@@ -31,9 +35,20 @@ try {
             }
         })
     });
+    uploadFoodImages = multer({
+        storage: multerS3({
+            s3: s3,
+            bucket: process.env.AWS_BUCKET_NAME,
+            acl: 'public-read',
+            key: (req, file, cb) => {
+                cb(null, `food/${Date.now()}-${file.originalname}`);
+            }
+        })
+    });
+
 } catch (error) {
     console.error('Error configuring AWS:', error.message);
     throw error;
 }
 
-export { uploadNgoDocuments };
+export { uploadNgoDocuments, uploadFoodImages };
