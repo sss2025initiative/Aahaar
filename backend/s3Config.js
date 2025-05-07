@@ -4,8 +4,6 @@ import AWS from 'aws-sdk';
 import multerS3 from 'multer-s3';
 import multer from 'multer';
 
-dotenv.config();
-
 let uploadNgoDocuments;
 let uploadFoodImages;
 

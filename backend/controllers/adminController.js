@@ -244,5 +244,9 @@ export {
   deleteUser,
   getPendingFoodDonations,
   approveFoodDonation,
-  rejectFoodDonation
+  rejectFoodDonation,
+  getNgoBasedOnCity,
+  approveNgo,
+  getUsersBasedOnCity,
+  verifyUser,
 };
