@@ -9,6 +9,7 @@ import { errorHandler, notFound } from './middlewares/errorHandler.js';
 import userRoutes from "./routes/userRoutes.js";
 import foodInfoRoutes from "./routes/FoodInfoRoute.js";
 import ngoRoutes from "./routes/ngoRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 const port = process.env.PORT || 5000;
 
@@ -23,6 +24,7 @@ app.use(cookieParser());
 app.use('/aahar/users', userRoutes);
 app.use('/aahar/foodInfo', foodInfoRoutes);
 app.use('/aahar/ngo', ngoRoutes);
+app.use('/aahar/admin', adminRoutes);
 
 // Error handling middleware should be after all routes
 app.use(notFound);
