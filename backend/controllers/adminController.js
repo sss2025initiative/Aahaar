@@ -3,6 +3,7 @@ import User from "../models/userModel.js";
 export { getNgoBasedOnCity, approveNgo, getUsersBasedOnCity, verifyUser };
 import FoodInfo from "../models/foodInfoModel.js";
 import asyncHandler from "../middlewares/asyncHandler.js";
+import Ngo from "../models/ngoModel.js";
 
 //get Ngos based on their cities
 const getNgoBasedOnCity = asyncHandler(async(req, res) => {

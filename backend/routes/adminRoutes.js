@@ -8,7 +8,11 @@ import {
   deleteUser,
   getPendingFoodDonations,
   approveFoodDonation,
-  rejectFoodDonation
+  rejectFoodDonation,
+  approveNgo,
+  verifyUser,
+  getUsersBasedOnCity,
+  getNgoBasedOnCity
 } from "../controllers/adminController.js";
 
 const router = express.Router();
@@ -27,5 +31,12 @@ router.route('/users/:userId').delete(deleteUser);
 router.route('/food-donations/pending').get(getPendingFoodDonations);
 router.route('/food-donations/:donationId/approve').put(approveFoodDonation);
 router.route('/food-donations/:donationId/reject').put(rejectFoodDonation);
+
+// Admin NGO management routes
+router.route('/ngos-based-city').get(getNgoBasedOnCity);
+router.route('/approve-ngo/:id').put(approveNgo);
+router.route('/verify-user/:id').put(verifyUser);
+router.route('/users-based-city').get(getUsersBasedOnCity);
+
 
 export default router;
