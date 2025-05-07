@@ -3,7 +3,11 @@ dotenv.config();
 import AWS from 'aws-sdk';
 import multerS3 from 'multer-s3';
 import multer from 'multer';
-let uploadDocumentsToS3;
+
+dotenv.config();
+
+let uploadNgoDocuments;
+let uploadFoodImages;
 
 try {
     AWS.config.update({
@@ -14,19 +18,30 @@ try {
 
     const s3 = new AWS.S3();
 
-    uploadDocumentsToS3 = multer({
+    uploadNgoDocuments = multer({
         storage: multerS3({
             s3: s3,
-            bucket: process.env.S3_BUCKET_NAME,
+            bucket: process.env.AWS_BUCKET_NAME,
             acl: 'public-read',
             key: (req, file, cb) => {
                 cb(null, `ngos/${Date.now()}-${file.originalname}`);
             }
         })
     });
+    uploadFoodImages = multer({
+        storage: multerS3({
+            s3: s3,
+            bucket: process.env.AWS_BUCKET_NAME,
+            acl: 'public-read',
+            key: (req, file, cb) => {
+                cb(null, `food/${Date.now()}-${file.originalname}`);
+            }
+        })
+    });
+
 } catch (error) {
     console.error('Error configuring AWS:', error.message);
     throw error;
 }
 
-export { uploadDocumentsToS3 };
+export { uploadNgoDocuments, uploadFoodImages };
