@@ -28,8 +28,6 @@ app.use('/aahar/ngo', ngoRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-console.log(process.env.PORT);
-
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });

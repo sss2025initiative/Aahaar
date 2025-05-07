@@ -1,6 +1,6 @@
 import FoodInfo from "../models/foodInfoModel.js";
 import asyncHandler from "express-async-handler";
-const CreateFoodInfo=asyncHandler(async(req , res)=>{
+const CreateFoodInfo = asyncHandler(async(req , res)=>{
     const {
         foodName,
         quantity,
@@ -8,7 +8,6 @@ const CreateFoodInfo=asyncHandler(async(req , res)=>{
         expiryDate,
         packaging,
         imageUrl,
-        donorId,
         category,
         status,
         fullAddress,
@@ -37,7 +36,7 @@ const CreateFoodInfo=asyncHandler(async(req , res)=>{
         expiryDate,
         packaging,
         imageUrl,
-        donorId,
+        donorId : req.user._id, 
         category,
         contactDetails,
         status

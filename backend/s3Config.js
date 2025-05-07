@@ -3,7 +3,7 @@ dotenv.config();
 import AWS from 'aws-sdk';
 import multerS3 from 'multer-s3';
 import multer from 'multer';
-let uploadNgoDocuments;
+let uploadDocumentsToS3;
 
 try {
     AWS.config.update({
@@ -14,7 +14,7 @@ try {
 
     const s3 = new AWS.S3();
 
-    uploadNgoDocuments = multer({
+    uploadDocumentsToS3 = multer({
         storage: multerS3({
             s3: s3,
             bucket: process.env.S3_BUCKET_NAME,
@@ -29,4 +29,4 @@ try {
     throw error;
 }
 
-export { uploadNgoDocuments };
+export { uploadDocumentsToS3 };
