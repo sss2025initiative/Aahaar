@@ -1,11 +1,7 @@
 import dotenv from 'dotenv';
+dotenv.config({path: "./utils/.env" });
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-dotenv.config({ path: path.join(__dirname, '.env') });
 import express from 'express';
 import connectDb from './utils/db.js';
 import cookieParser from 'cookie-parser';
@@ -14,6 +10,7 @@ import userRoutes from "./routes/userRoutes.js";
 import foodInfoRoutes from "./routes/FoodInfoRoute.js";
 import ngoRoutes from "./routes/ngoRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+
 const port = process.env.PORT || 5000;
 
 connectDb();

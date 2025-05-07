@@ -16,7 +16,12 @@ const authUser = asyncHandler(async (req, res) => {
       surname: user.surname,
       email: user.email,
       age: user.age,
+      city: user.city,
+      state: user.state,
+      country: user.country,
+      isVerified: user.isVerified,
       isAdmin: user.isAdmin,
+      adharVerificationDocument: user.adharVerificationDocument,
       token: generateToken(res, user._id),
     });
   } else {
@@ -27,7 +32,7 @@ const authUser = asyncHandler(async (req, res) => {
 //register User
 
 const registerUser = asyncHandler(async (req, res) => {
-  const { firstName, surname, email, password, age } = req.body;
+  const { firstName, surname, email, password, age,city,state,country} = req.body;
 
   const userExists = await User.findOne({ email });
   if (userExists) {
@@ -41,6 +46,9 @@ const registerUser = asyncHandler(async (req, res) => {
     email,
     password,
     age,
+    city,
+    state,
+    country
   });
 
   if (user) {
@@ -51,6 +59,10 @@ const registerUser = asyncHandler(async (req, res) => {
       surname: user.surname,
       email: user.email,
       age: user.age,
+      city: user.city,
+      state: user.state,  
+      country: user.country,
+      isAdmin: user.isAdmin,
       token: generateToken(res, user._id),
       message: "User registered successfully",
     });
@@ -70,4 +82,25 @@ const logoutUser = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "Logged Out successfully" });
 });
 
-export { authUser, registerUser, logoutUser };
+//adhar verification Document upload
+const uploadAdharDocument = asyncHandler(async (req, res) => {
+  const files = req.files;
+  if (files) {
+    const filesUrls = {
+      adharVerificationDocument: files.adharVerificationDocument?.[0]?.location,
+    };
+    res.status(200).json({
+      message: "Files uploaded successfully",
+      filesUrls,
+    });
+  } else {
+    res.status(400).json({
+      message: "No files uploaded",
+    });
+  }
+}
+);
+
+
+
+export { authUser, registerUser, logoutUser, uploadAdharDocument };

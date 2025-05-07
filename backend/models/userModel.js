@@ -23,10 +23,30 @@ const userSchema = mongoose.Schema(
       type: String,
       required: true,
     },
+    city: {
+      type: String,
+      required: true,
+    },
+    state: {
+      type: String,
+      required: true,
+    },
+    country: {
+      type: String,
+      required: true,
+    },
     isAdmin: {
       type: Boolean,
       default: false,
-    }
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    adharVerificationDocument: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

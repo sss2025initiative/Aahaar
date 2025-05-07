@@ -6,8 +6,7 @@ const uploadNgoDocumentsContrller = asyncHandler(async (req, res) => {
   const files = req.files;
   if (files) {
     const filesUrls = {
-      certificationOfRegistration:
-        files.certificationOfRegistration?.[0]?.location,
+      certificationOfRegistration:files.certificationOfRegistration?.[0]?.location,
       ownerPanCard: files.ownerPanCard?.[0]?.location,
       prevousWorkReport: files.prevousWorkReport?.[0]?.location,
     };

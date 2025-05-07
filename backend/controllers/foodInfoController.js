@@ -1,6 +1,8 @@
 import FoodInfo from "../models/foodInfoModel.js";
 import asyncHandler from "express-async-handler";
 import upload from "../middlewares/upload.js";
+// const CreateFoodInfo = asyncHandler(async(req , res)=>{
+
 
 // @desc    Upload food Images
 const uploadFoodImages = asyncHandler(async (req, res) => {
@@ -19,6 +21,7 @@ const uploadFoodImages = asyncHandler(async (req, res) => {
   });
 
 const CreateFoodInfo=asyncHandler(async(req , res)=>{
+//  9850af7913271cf2c8775c1e928ca579cda510cd
     const {
         foodName,
         quantity,
@@ -26,7 +29,6 @@ const CreateFoodInfo=asyncHandler(async(req , res)=>{
         expiryDate,
         packaging,
         imageUrl,
-        donorId,
         category,
         status,
         fullAddress,
@@ -57,7 +59,7 @@ const CreateFoodInfo=asyncHandler(async(req , res)=>{
         expiryDate,
         packaging,
         imageUrl,
-        donorId,
+        donorId : req.user._id, 
         category,
         contactDetails,
         status

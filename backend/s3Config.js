@@ -1,17 +1,8 @@
+import dotenv from 'dotenv';
+dotenv.config();    
 import AWS from 'aws-sdk';
 import multerS3 from 'multer-s3';
 import multer from 'multer';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-// Detailed logging of environment variables
-console.log('AWS Configuration Check:');
-console.log('AWS_ACCESS_KEY_ID:', process.env.AWS_ACCESS_KEY_ID ? 'Present' : 'Missing');
-console.log('AWS_SECRET_ACCESS_KEY:', process.env.AWS_SECRET_ACCESS_KEY ? 'Present' : 'Missing');
-console.log('AWS_REGION:', process.env.AWS_REGION || 'Missing');
-console.log('AWS_BUCKET_NAME:', process.env.AWS_BUCKET_NAME || 'Missing');
-
 
 let uploadNgoDocuments;
 let uploadFoodImages;
