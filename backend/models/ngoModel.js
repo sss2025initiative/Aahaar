@@ -1,8 +1,4 @@
-// <<<<<<< HEAD
 import { mongoose } from "mongoose";
-// =======
-import Mongoose from "mongoose";
-// >>>>>>> 9850af7913271cf2c8775c1e928ca579cda510cd
 
 const ngoSchema = mongoose.Schema({
     ngoName: {
