@@ -67,23 +67,6 @@ const CreateFoodInfo=asyncHandler(async(req , res)=>{
    return res.status(201).json({foodInfo,message:"Food info created successfully"});
 })
 
-// @desc    Get food info by city
-const getFoodInfoByCity=asyncHandler(async(req ,res)=>{
-    const {city}=req.params;
-    const foodInfo=await FoodInfo.find({city});
-    if(!foodInfo){
-        return res.status(404).json({message:"No food info found"});
-    }
-    return res.status(200).json({foodInfo,message:"Food info fetched successfully"});
-})
-
-const getFoodInfo=asyncHandler(async(req ,res)=>{
-    const foodInfo=await FoodInfo.find();
-    if(!foodInfo){
-        return res.status(404).json({message:"No food info found"});
-    }
-    return res.status(200).json({foodInfo,message:"Food info fetched successfully"});
-})
 
 const getFoodInfoById=asyncHandler(async(req ,res)=>{
     const {id}=req.params;
@@ -162,7 +145,7 @@ const deleteFoodInfo=asyncHandler(async(req ,res)=>{
     return res.status(200).json({message:"Food info deleted successfully"});
 })
 
-export {CreateFoodInfo,getFoodInfo,getFoodInfoByCity,getFoodInfoById,updateFoodInfo,deleteFoodInfo,uploadFoodImages};
+export {CreateFoodInfo,getFoodInfoById,updateFoodInfo,deleteFoodInfo,uploadFoodImages};
 
 
 
