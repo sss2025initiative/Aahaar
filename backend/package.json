@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "aws-sdk": "^2.1692.0",
+    "backend": "file:",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
     "colors": "^1.4.0",
