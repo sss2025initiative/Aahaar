@@ -1,8 +1,6 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import User from "../models/userModel.js";
-export { getNgoBasedOnCity, approveNgo, getUsersBasedOnCity, verifyUser };
 import FoodInfo from "../models/foodInfoModel.js";
-import asyncHandler from "../middlewares/asyncHandler.js";
 import Ngo from "../models/ngoModel.js";
 
 //get Ngos based on their cities
@@ -14,7 +12,6 @@ const getNgoBasedOnCity = asyncHandler(async(req, res) => {
     } else {
         res.status(404).json({ message: "No NGOs found in your city" });
     }
-
 })
 
 //approve Ngo

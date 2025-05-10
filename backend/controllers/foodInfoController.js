@@ -1,6 +1,6 @@
 import FoodInfo from "../models/foodInfoModel.js";
 import asyncHandler from "express-async-handler";
-import upload from "../middlewares/upload.js";
+import { uploadFoodImages as uploadFoodImagesMiddleware } from "../s3Config.js";
 // const CreateFoodInfo = asyncHandler(async(req , res)=>{
 
 

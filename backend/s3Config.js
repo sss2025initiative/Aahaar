@@ -8,6 +8,13 @@ let uploadNgoDocuments;
 let uploadFoodImages;
 
 try {
+    console.log('AWS Environment Variables:', {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID ? 'Present' : 'Missing',
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ? 'Present' : 'Missing',
+        region: process.env.AWS_REGION ? 'Present' : 'Missing',
+        bucket: process.env.AWS_BUCKET_NAME ? 'Present' : 'Missing'
+    });
+
     AWS.config.update({
         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
