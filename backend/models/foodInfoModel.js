@@ -15,7 +15,6 @@ const foodInfoSchema = new mongoose.Schema({
   expiryDate: { type: Date, required: true },
   packaging: { type: String },
   imageUrl: { type: [String]},
-  timestamp: { type: Date, default: Date.now },
   donorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   category: {
     type: String,
@@ -30,7 +29,7 @@ const foodInfoSchema = new mongoose.Schema({
   rejectedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'},
   rejectedAt:{type:Date},
   rejectedReason:{type:String},
-});
+},{ timestamps: true });
 
 const FoodInfo = mongoose.model('FoodInfo', foodInfoSchema);
 

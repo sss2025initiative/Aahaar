@@ -6,10 +6,10 @@ import {
   makeUserAdmin, 
   removeAdminPrivileges, 
   deleteUser,
-  getPendingFoodDonations,
   approveFoodDonation,
   rejectFoodDonation,
   approveNgo,
+  getFoodInfoByCity,
   verifyUser,
   getUsersBasedOnCity,
   getNgoBasedOnCity
@@ -28,9 +28,10 @@ router.route('/users/:userId/remove-admin').put(removeAdminPrivileges);
 router.route('/users/:userId').delete(deleteUser);
 
 // Admin food donation management routes
-router.route('/food-donations/pending').get(getPendingFoodDonations);
 router.route('/food-donations/:donationId/approve').put(approveFoodDonation);
 router.route('/food-donations/:donationId/reject').put(rejectFoodDonation);
+router.route('/getFoodInfoByCity').get(protect,getFoodInfoByCity);
+
 
 // Admin NGO management routes
 router.route('/ngos-based-city').get(getNgoBasedOnCity);
