@@ -95,6 +95,17 @@ const makeUserAdmin = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get food info by city
+const getFoodInfoByCity=asyncHandler(async(req ,res)=>{
+    const {city}=req.params;
+    const foodInfo=await FoodInfo.find({city});
+    if(!foodInfo){
+        return res.status(404).json({message:"No food info found"});
+    }
+    return res.status(200).json({foodInfo,message:"Food info fetched successfully"});
+})
+
+
 // @desc    Remove admin privileges from user
 // @route   PUT /api/admin/users/:userId/remove-admin
 // @access  Private/Admin
@@ -154,21 +165,6 @@ const deleteUser = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Get all pending food donations
-// @route   GET /api/admin/food-donations/pending
-// @access  Private/Admin
-const getPendingFoodDonations = asyncHandler(async (req, res) => {
-  const pendingDonations = await FoodInfo.find({ 
-    status: 'pending',
-    isApproved: false 
-  }).populate('donorId', 'firstName surname email');
-  
-  res.status(200).json({
-    pendingDonations,
-    count: pendingDonations.length,
-    message: "Pending donations fetched successfully"
-  });
-});
 
 // @desc    Approve a food donation
 // @route   PUT /api/admin/food-donations/:donationId/approve
@@ -239,11 +235,11 @@ export {
   makeUserAdmin, 
   removeAdminPrivileges, 
   deleteUser,
-  getPendingFoodDonations,
   approveFoodDonation,
   rejectFoodDonation,
   getNgoBasedOnCity,
   approveNgo,
   getUsersBasedOnCity,
   verifyUser,
+  getFoodInfoByCity
 };
