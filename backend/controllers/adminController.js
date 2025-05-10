@@ -59,7 +59,7 @@ const verifyUser = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/users
 // @access  Private/Admin
 const getAllUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({}).select('-password');
+  const users = await User.find({}).select('-password');// exclude password from the response
   
   res.status(200).json({
     users,
@@ -74,7 +74,7 @@ const makeUserAdmin = asyncHandler(async (req, res) => {
   const { userId } = req.params;
   
   const user = await User.findById(userId);
-  
+  // check if user exists
   if (!user) {
     res.status(404);
     throw new Error("User not found");
@@ -145,14 +145,13 @@ const removeAdminPrivileges = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const deleteUser = asyncHandler(async (req, res) => {
   const { userId } = req.params;
-  
+  // find user by id
   const user = await User.findById(userId);
-  
+  // check if user exists
   if (!user) {
     res.status(404);
     throw new Error("User not found");
   }
-  
   // Prevent deleting self
   if (user._id.toString() === req.user._id.toString()) {
     res.status(400);
