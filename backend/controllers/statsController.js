@@ -148,6 +148,23 @@ const getStats = async (req, res) => {
         },
       },
     ]);
+
+    const totalQtyDonated = await FoodInfo.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalQty: {$sum: "$quantity"}
+        }
+      }
+    ]) 
+
+    const totalQtyByCategory = await FoodInfo.aggregate([{
+      $group: {
+        _id: "$category",
+        totalQty: {$sum: "$quantity"}
+      }
+    }])
+
     res.status(200).json({
       success: true,
       stats: {
@@ -159,6 +176,8 @@ const getStats = async (req, res) => {
         donor: {
           total: totalDonors,
           approved: approvedDonors,
+          totalQtyDonated: totalQtyDonated[0]?.totalQty || 0,
+          totalQtyByCategory: totalQtyByCategory,
           // Remove pending: pendingDonors since it's not defined
           topDonors,
         },
