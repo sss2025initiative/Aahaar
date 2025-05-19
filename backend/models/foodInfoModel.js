@@ -11,7 +11,7 @@ const contactDetailsSchema = new mongoose.Schema({
 const foodInfoSchema = new mongoose.Schema({
   foodName: { type: String, required: true },
   quantity: { type: Number, required: true },
-  quantityType: { type: String, enum: ['kg', 'g', 'ml', 'l', 'pcs', 'Tray'], required: true },
+  quantityType: { type: String, enum: ['kg', 'g', 'ml', 'l', 'pcs'], required: true },
   expiryDate: { type: Date, required: true },
   packaging: { type: String },
   imageUrl: { type: [String]},
