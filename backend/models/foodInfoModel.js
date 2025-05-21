@@ -9,7 +9,7 @@ const contactDetailsSchema = new mongoose.Schema({
 }, { _id: false });
 
 const foodInfoSchema = new mongoose.Schema({
-  foodName: { type: String, required: true },
+  foodItemDetails:[{foodName: { type: String, required: true },
   quantity: { type: Number, required: true },
   quantityType: { type: String, enum: ['kg', 'g', 'ml', 'l', 'pcs'], required: true },
   expiryDate: { type: Date, required: true },
@@ -20,7 +20,7 @@ const foodInfoSchema = new mongoose.Schema({
     type: String,
     enum: ['Fruits', 'Vegetables', 'Bakery', 'Dairy', 'Cooked Meals', 'Beverages', 'Packaged Food', 'Grains', 'Others'],
     required: true
-  },
+  }}],
   contactDetails: { type: contactDetailsSchema, required: true },
   status: { type: String, enum: ['pending','approved','rejected'], default: 'pending' },
   isApproved:{type:Boolean,default:false},

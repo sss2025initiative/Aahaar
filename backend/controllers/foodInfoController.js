@@ -7,30 +7,22 @@ import { uploadFoodImages as uploadFoodImagesMiddleware } from "../s3Config.js";
 // @desc    Upload food Images
 const uploadFoodImages = asyncHandler(async (req, res) => {
     const files = req.files;
-    if (files) {
-      const imageUrl = files.foodImage?.[0]?.location;
+    if (files && files.foodImage) {
+      const imageUrls = files.foodImage.map(file => file.location);
       res.status(200).json({
-        message: "Food image uploaded successfully",
-        imageUrl,
+        message: "Food images uploaded successfully",
+        imageUrls,
       });
     } else {
       res.status(400).json({
-        message: "No image uploaded",
+        message: "No images uploaded",
       });
     }
-  });
+});
 
 const CreateFoodInfo=asyncHandler(async(req , res)=>{
-//  9850af7913271cf2c8775c1e928ca579cda510cd
     const {
-        foodName,
-        quantity,
-        quantityType,
-        expiryDate,
-        packaging,
-        imageUrl,
-        category,
-        status,
+        foodItemDetails,
         fullAddress,
         city,
         contactPersonName,
@@ -38,10 +30,37 @@ const CreateFoodInfo=asyncHandler(async(req , res)=>{
         email
     }=req.body;
 
-    if(!foodName || !quantity || !quantityType || !expiryDate || !donorId || !category || 
+    if(!foodItemDetails || !Array.isArray(foodItemDetails) || foodItemDetails.length === 0 || 
        !fullAddress || !city || !contactPersonName || !phoneNumber || !email){
         res.status(400);
         throw new Error("All required fields are missing");
+    }
+
+    // Validate each food item
+    for(const item of foodItemDetails) {
+        if(!item.foodName || !item.quantity || !item.quantityType || !item.expiryDate || !item.category) {
+            res.status(400);
+            throw new Error("All food item details are required");
+        }
+        
+        // Validate imageUrl array if present
+        if(item.imageUrl && !Array.isArray(item.imageUrl)) {
+            res.status(400);
+            throw new Error("imageUrl must be an array");
+        }
+        
+        // Validate expiry date
+        const expiryDate = new Date(item.expiryDate);
+        if(isNaN(expiryDate.getTime())) {
+            res.status(400);
+            throw new Error("Invalid expiry date format");
+        }
+        
+        // Validate quantity
+        if(item.quantity <= 0) {
+            res.status(400);
+            throw new Error("Quantity must be greater than 0");
+        }
     }
 
     const contactDetails = {
@@ -53,16 +72,10 @@ const CreateFoodInfo=asyncHandler(async(req , res)=>{
     };
 
     const foodInfo=await FoodInfo.create({
-        foodName,
-        quantity,
-        quantityType,
-        expiryDate,
-        packaging,
-        imageUrl,
-        donorId : req.user._id, 
-        category,
+        foodItemDetails,
+        donorId: req.user._id,
         contactDetails,
-        status
+        status: 'pending'
     })
    return res.status(201).json({foodInfo,message:"Food info created successfully"});
 })
@@ -80,20 +93,27 @@ const getFoodInfoById=asyncHandler(async(req ,res)=>{
 const updateFoodInfo=asyncHandler(async(req ,res)=>{
     const {id}=req.params;
     const {
-        foodName,
-        quantity,
-        quantityType,
-        expiryDate,
-        packaging,
-        imageUrl,
-        donorId,
-        category,
+        foodItemDetails,
         fullAddress,
         city,
         contactPersonName,
         phoneNumber,
         email
     }=req.body;
+
+    if(!foodItemDetails || !Array.isArray(foodItemDetails) || foodItemDetails.length === 0 || 
+       !fullAddress || !city || !contactPersonName || !phoneNumber || !email){
+        res.status(400);
+        throw new Error("All required fields are missing");
+    }
+
+    // Validate each food item
+    for(const item of foodItemDetails) {
+        if(!item.foodName || !item.quantity || !item.quantityType || !item.expiryDate || !item.category) {
+            res.status(400);
+            throw new Error("All food item details are required");
+        }
+    }
 
     const contactDetails = {
         fullAddress,
@@ -113,14 +133,7 @@ const updateFoodInfo=asyncHandler(async(req ,res)=>{
     
     // Only update fields that regular users are allowed to update
     const foodInfo = await FoodInfo.findByIdAndUpdate(id, {
-        foodName,
-        quantity,
-        quantityType,
-        expiryDate,
-        packaging,
-        imageUrl,
-        donorId,
-        category,
+        foodItemDetails,
         contactDetails,
         // Preserve admin-controlled fields
         status: existingFoodInfo.status,
