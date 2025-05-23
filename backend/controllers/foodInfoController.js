@@ -1,10 +1,7 @@
 import FoodInfo from "../models/foodInfoModel.js";
 import asyncHandler from "express-async-handler";
 import { uploadFoodImages as uploadFoodImagesMiddleware } from "../s3Config.js";
-// const CreateFoodInfo = asyncHandler(async(req , res)=>{
 
-
-// @desc    Upload food Images
 const uploadFoodImages = asyncHandler(async (req, res) => {
     const files = req.files;
     if (files && files.foodImage) {
@@ -24,6 +21,7 @@ const CreateFoodInfo=asyncHandler(async(req , res)=>{
     const {
         foodItemDetails,
         fullAddress,
+        ngoPreference,
         city,
         contactPersonName,
         phoneNumber,
@@ -36,27 +34,23 @@ const CreateFoodInfo=asyncHandler(async(req , res)=>{
         throw new Error("All required fields are missing");
     }
 
-    // Validate each food item
     for(const item of foodItemDetails) {
         if(!item.foodName || !item.quantity || !item.quantityType || !item.expiryDate || !item.category) {
             res.status(400);
             throw new Error("All food item details are required");
         }
         
-        // Validate imageUrl array if present
         if(item.imageUrl && !Array.isArray(item.imageUrl)) {
             res.status(400);
             throw new Error("imageUrl must be an array");
         }
         
-        // Validate expiry date
         const expiryDate = new Date(item.expiryDate);
         if(isNaN(expiryDate.getTime())) {
             res.status(400);
             throw new Error("Invalid expiry date format");
         }
         
-        // Validate quantity
         if(item.quantity <= 0) {
             res.status(400);
             throw new Error("Quantity must be greater than 0");
@@ -73,13 +67,12 @@ const CreateFoodInfo=asyncHandler(async(req , res)=>{
 
     const foodInfo=await FoodInfo.create({
         foodItemDetails,
-        donorId: req.user._id,
         contactDetails,
+        ngoPreference,
         status: 'pending'
     })
    return res.status(201).json({foodInfo,message:"Food info created successfully"});
 })
-
 
 const getFoodInfoById=asyncHandler(async(req ,res)=>{
     const {id}=req.params;
@@ -98,7 +91,8 @@ const updateFoodInfo=asyncHandler(async(req ,res)=>{
         city,
         contactPersonName,
         phoneNumber,
-        email
+        email,
+        ngoPreference
     }=req.body;
 
     if(!foodItemDetails || !Array.isArray(foodItemDetails) || foodItemDetails.length === 0 || 
@@ -107,7 +101,6 @@ const updateFoodInfo=asyncHandler(async(req ,res)=>{
         throw new Error("All required fields are missing");
     }
 
-    // Validate each food item
     for(const item of foodItemDetails) {
         if(!item.foodName || !item.quantity || !item.quantityType || !item.expiryDate || !item.category) {
             res.status(400);
@@ -123,7 +116,6 @@ const updateFoodInfo=asyncHandler(async(req ,res)=>{
         email
     };
 
-    // Find the food info first to preserve admin-only fields
     const existingFoodInfo = await FoodInfo.findById(id);
     
     if (!existingFoodInfo) {
@@ -131,11 +123,10 @@ const updateFoodInfo=asyncHandler(async(req ,res)=>{
         throw new Error("Food info not found");
     }
     
-    // Only update fields that regular users are allowed to update
     const foodInfo = await FoodInfo.findByIdAndUpdate(id, {
         foodItemDetails,
         contactDetails,
-        // Preserve admin-controlled fields
+        ngoPreference,
         status: existingFoodInfo.status,
         isApproved: existingFoodInfo.isApproved,
         approvedBy: existingFoodInfo.approvedBy,
@@ -147,7 +138,6 @@ const updateFoodInfo=asyncHandler(async(req ,res)=>{
     
     return res.status(200).json({foodInfo,message:"Food info updated successfully"});
 })
-
 
 const deleteFoodInfo=asyncHandler(async(req ,res)=>{
     const {id}=req.params;

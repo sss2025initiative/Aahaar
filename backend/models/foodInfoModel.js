@@ -23,6 +23,7 @@ const foodInfoSchema = new mongoose.Schema({
     required: true
   }}],
   contactDetails: { type: contactDetailsSchema, required: true },
+  ngoPreference:{type:mongoose.Schema.Types.ObjectId, ref: 'Ngo', default :"random"},
   status: { type: String, enum: ['pending','approved','rejected'], default: 'pending' },
   isApproved:{type:Boolean,default:false},
   approvedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'},
