@@ -7,7 +7,8 @@ const contactDetailsSchema = new mongoose.Schema({
   phoneNumber: { type: String, required: true },
   email: { type: String, required: true },
 }, { _id: false });
-
+// wrap data in foodItemFetails array to avoid duplication of data in foodItemDetails
+// and to make it easier to add more food items in the future
 const foodInfoSchema = new mongoose.Schema({
   foodItemDetails:[{foodName: { type: String, required: true },
   quantity: { type: Number, required: true },
