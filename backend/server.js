@@ -10,7 +10,7 @@ import userRoutes from "./routes/userRoutes.js";
 import foodInfoRoutes from "./routes/FoodInfoRoute.js";
 import ngoRoutes from "./routes/ngoRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
-
+import userStatsRoutes from "./routes/userStatsRoutes.js";
 const port = process.env.PORT || 5000;
 
 connectDb();
@@ -25,6 +25,7 @@ app.use('/aahar/users', userRoutes);
 app.use('/aahar/foodInfo', foodInfoRoutes);
 app.use('/aahar/ngo', ngoRoutes);
 app.use('/aahar/admin', adminRoutes);
+app.use('/aahar/user-stats', userStatsRoutes);
 
 // Error handling middleware should be after all routes
 app.use(notFound);
