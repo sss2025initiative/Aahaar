@@ -197,6 +197,59 @@ const approveFoodDonation = asyncHandler(async (req, res) => {
   });
 });
 
+const updateFoodInfoQuantity = asyncHandler(async (req, res) => {
+  const { donationId } = req.params;
+  const { foodItems } = req.body;
+  
+  if (!donationId || !foodItems || !Array.isArray(foodItems) || foodItems.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide donationId and an array of foodItems"
+    });
+  }
+  
+  const donation = await FoodInfo.findById(donationId);
+  
+  if (!donation) {
+    return res.status(404).json({
+      success: false,
+      message: "Donation not found"
+    });
+  }
+  const updatedItems = [];
+  
+  for (const item of foodItems) {
+    const { foodItemId, quantity, quantityType } = item;
+    
+    const foodItemIndex = donation.foodItemDetails.findIndex(
+      detail => detail._id.toString() === foodItemId
+    );
+    
+    donation.foodItemDetails[foodItemIndex].quantity = quantity;
+    donation.foodItemDetails[foodItemIndex].quantityType = quantityType;
+    
+    updatedItems.push({
+      foodItemId,
+      foodName: donation.foodItemDetails[foodItemIndex].foodName,
+      quantity,
+      quantityType
+    });
+  }
+  
+  if (updatedItems.length > 0) {
+    await donation.save();
+  }
+  
+  const response = {
+    success: updatedItems.length > 0,
+    message: updatedItems.length > 0 
+      ? `Successfully updated ${updatedItems.length} food item(s)` 
+      : "No food items were updated",
+  };
+  
+  res.status(updatedItems.length > 0 ? 200 : 400).json(response);
+});
+
 // @desc    Reject a food donation
 // @route   PUT /api/admin/food-donations/:donationId/reject
 // @access  Private/Admin
@@ -230,6 +283,22 @@ const rejectFoodDonation = asyncHandler(async (req, res) => {
   });
 });
 
+const triggerInReview = asyncHandler(async (req, res) => {
+  const { donationId } = req.params;
+
+  const donation = await FoodInfo.findById(donationId);
+  if (!donation) {
+    res.status(404);
+    throw new Error("Donation not found");
+  }
+  donation.adminInReview = !donation.adminInReview;
+  await donation.save();
+  res.status(200).json({
+    message: "Food donation in review successfully",
+    donation
+  });
+})
+
 export { 
   getAllUsers, 
   makeUserAdmin, 
@@ -241,5 +310,7 @@ export {
   approveNgo,
   getUsersBasedOnCity,
   verifyUser,
-  getFoodInfoByCity
+  getFoodInfoByCity,
+  updateFoodInfoQuantity,
+  triggerInReview
 };

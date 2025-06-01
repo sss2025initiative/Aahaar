@@ -35,10 +35,6 @@ const CreateFoodInfo=asyncHandler(async(req , res)=>{
     }
 
     for(const item of foodItemDetails) {
-        if(!item.foodName || !item.quantity || !item.quantityType || !item.expiryDate || !item.category) {
-            res.status(400);
-            throw new Error("All food item details are required");
-        }
         
         if(item.imageUrl && !Array.isArray(item.imageUrl)) {
             res.status(400);

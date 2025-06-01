@@ -12,7 +12,9 @@ import {
   getFoodInfoByCity,
   verifyUser,
   getUsersBasedOnCity,
-  getNgoBasedOnCity
+  getNgoBasedOnCity,
+  updateFoodInfoQuantity,
+  triggerInReview
 } from "../controllers/adminController.js";
 
 const router = express.Router();
@@ -29,6 +31,8 @@ router.route('/users/:userId').delete(deleteUser);
 
 // Admin food donation management routes
 router.route('/food-donations/:donationId/approve').put(approveFoodDonation);
+router.route('/food-donations/:donationId/approve-inreview').put(triggerInReview);
+router.route('/food-donations/:donationId/quantity-updatation').put(updateFoodInfoQuantity);
 router.route('/food-donations/:donationId/reject').put(rejectFoodDonation);
 router.route('/getFoodInfoByCity').get(protect,getFoodInfoByCity);
 

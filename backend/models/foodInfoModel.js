@@ -7,12 +7,10 @@ const contactDetailsSchema = new mongoose.Schema({
   phoneNumber: { type: String, required: true },
   email: { type: String, required: true },
 }, { _id: false });
-// wrap data in foodItemFetails array to avoid duplication of data in foodItemDetails
-// and to make it easier to add more food items in the future
 const foodInfoSchema = new mongoose.Schema({
   foodItemDetails:[{foodName: { type: String, required: true },
-  quantity: { type: Number, required: true },
-  quantityType: { type: String, enum: ['kg', 'g', 'ml', 'l', 'pcs'], required: true },
+  quantity: { type: Number },
+  quantityType: { type: String, enum: ['kg', 'g', 'ml', 'l', 'pcs'] },
   expiryDate: { type: Date, required: true },
   packaging: { type: String },
   imageUrl: { type: [String]},
@@ -23,7 +21,8 @@ const foodInfoSchema = new mongoose.Schema({
     required: true
   }}],
   contactDetails: { type: contactDetailsSchema, required: true },
-  ngoPreference:{type:mongoose.Schema.Types.ObjectId, ref: 'Ngo', default :"random"},
+  ngoPreference: { type: mongoose.Schema.Types.ObjectId, ref: 'Ngo', default: "random" },
+  adminInReview:{type:Boolean,default:false}, 
   status: { type: String, enum: ['pending','approved','rejected'], default: 'pending' },
   isApproved:{type:Boolean,default:false},
   approvedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'},
