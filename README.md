@@ -1,4 +1,4 @@
-# AAHAAR: Food Donation Platform
+# AAHAAR: Donation Orchestration & Tax Benefit Platform
 
 AAHAAR is a food donation platform that connects food donors with NGOs and individuals in need. The platform helps reduce food waste by facilitating the donation of excess food to those who need it most.
 
@@ -268,3 +268,4 @@ sequenceDiagram
     Admin->>System: Verify User
     end
 ```
+
