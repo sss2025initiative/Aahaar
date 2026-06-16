@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import dotenv from 'dotenv';
 dotenv.config({path: "./utils/.env" });
 import path from 'path';
@@ -12,6 +13,16 @@ import ngoRoutes from "./routes/ngoRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import userStatsRoutes from "./routes/userStatsRoutes.js";
 import statsRoutes from "./routes/statsRoutes.js";
+=======
+import express from 'express';
+import connectDb from './utils/db.js';
+import dotenv from 'dotenv';
+import cookieParser from 'cookie-parser';
+import { errorHandler, notFound } from './middlewares/errorHandler.js';
+
+
+dotenv.config();
+>>>>>>> santosh/main
 const port = process.env.PORT || 5000;
 
 connectDb();
@@ -21,6 +32,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+<<<<<<< HEAD
 // Routes
 app.use('/aahar/users', userRoutes);
 app.use('/aahar/foodInfo', foodInfoRoutes);
@@ -30,9 +42,18 @@ app.use('/aahar/user-stats', userStatsRoutes);
 app.use('/aahar/stats', statsRoutes);
 
 // Error handling middleware should be after all routes
+=======
+>>>>>>> santosh/main
 app.use(notFound);
 app.use(errorHandler);
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
+<<<<<<< HEAD
 });
+=======
+}
+);
+
+
+>>>>>>> santosh/main

@@ -1,6 +1,9 @@
 import User from "../models/userModel.js";
 import asyncHandler from "./asyncHandler.js";
+<<<<<<< HEAD
 import jwt from "jsonwebtoken";
+=======
+>>>>>>> santosh/main
 
 const protect = asyncHandler(async(req, res, next) => {
     let token;
