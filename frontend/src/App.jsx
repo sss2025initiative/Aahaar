@@ -18,6 +18,14 @@ import './App.css'
 
                   <main>
 
+
+
+
+
+
+
+
+
                     
                     <section className="card">
                       <h2>Features</h2>
