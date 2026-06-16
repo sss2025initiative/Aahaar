@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+<<<<<<< HEAD
 //userSchema for user model
+=======
+
+>>>>>>> santosh/main
 const userSchema = mongoose.Schema(
   {
     firstName: {
@@ -23,6 +27,7 @@ const userSchema = mongoose.Schema(
       type: String,
       required: true,
     },
+<<<<<<< HEAD
     city: {
       type: String,
       required: true,
@@ -47,15 +52,27 @@ const userSchema = mongoose.Schema(
       type: String,
       default: null,
     },
+=======
+    isAdmin: {
+      type: Boolean,
+      default: false,
+    }
+>>>>>>> santosh/main
   },
   { timestamps: true }
 );
 
+<<<<<<< HEAD
 
 //matching passwords
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+=======
+// userSchema.methods.matchPassword = async function (enteredPassword) {
+//   return await bcrypt.compare(enteredPassword, this.password);
+// };
+>>>>>>> santosh/main
 
 //hashing password before saving
 userSchema.pre("save", async function (next) {
@@ -67,7 +84,11 @@ userSchema.pre("save", async function (next) {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
+<<<<<<< HEAD
 //Model creation
+=======
+
+>>>>>>> santosh/main
 const User = mongoose.model("User", userSchema);
 
 export default User;
