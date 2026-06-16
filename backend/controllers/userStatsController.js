@@ -1,25 +1,35 @@
-//Stats controller file
 import FoodInfo from "../models/foodInfoModel.js";
-// user Dashboard
+import mongoose from "mongoose";
+
 const getUserDashboardStats = async (req, res) => {
   try {
-    const {donorId}=req.params;
-    // Monthly Donations
+    const { donorId } = req.params;
+    
+    // Convert string donorId to Mongoose ObjectId
+    const donorObjectId = new mongoose.Types.ObjectId(donorId);
+
+    // Monthly Donations (filtered by donorId inside foodItemDetails)
     const monthlyDonations = await FoodInfo.aggregate([
       {
         $match: {
-          donorId: donorId,
+          "foodItemDetails.donorId": donorObjectId,
           createdAt: {
             $gte: new Date(new Date().getFullYear(), 0, 1),
           },
         },
       },
+      { $unwind: "$foodItemDetails" },
+      {
+        $match: {
+          "foodItemDetails.donorId": donorObjectId,
+        },
+      },
       {
         $group: {
           _id: { $month: "$createdAt" },
-          quantity: { $sum: "$quantity" },
+          quantity: { $sum: "$foodItemDetails.quantity" },
           count: { $sum: 1 },
-          totalValue: { $sum: { $multiply: ["$quantity", "$pricePerUnit"] } }
+          totalValue: { $sum: { $multiply: ["$foodItemDetails.quantity", 50] } } // Default price 50 per unit
         },
       },
       { $sort: { _id: 1 } },
@@ -29,44 +39,57 @@ const getUserDashboardStats = async (req, res) => {
     const donationsByCategory = await FoodInfo.aggregate([
       {
         $match: {
-          donorId: donorId
+          "foodItemDetails.donorId": donorObjectId
+        }
+      },
+      { $unwind: "$foodItemDetails" },
+      {
+        $match: {
+          "foodItemDetails.donorId": donorObjectId
         }
       },
       {
         $group: {
-          _id: "$category",
-          totalQuantity: { $sum: "$quantity" },
-          totalValue: { $sum: { $multiply: ["$quantity", "$pricePerUnit"] } },
+          _id: "$foodItemDetails.category",
+          totalQuantity: { $sum: "$foodItemDetails.quantity" },
+          totalValue: { $sum: { $multiply: ["$foodItemDetails.quantity", 50] } },
           count: { $sum: 1 }
         }
       }
     ]);
 
-    // Recent Donations 5
-    const recentDonations = await FoodInfo.find({ donorId: donorId })
+    // Recent Donations (limit 5)
+    const recentDonations = await FoodInfo.find({
+      "foodItemDetails.donorId": donorObjectId
+    })
       .sort({ createdAt: -1 })
-      .limit(5)
-      .populate('recipientId', 'name');
+      .limit(5);
 
     // Total Donations Summary
     const totalDonations = await FoodInfo.aggregate([
       {
         $match: {
-          donorId: donorId
+          "foodItemDetails.donorId": donorObjectId
+        }
+      },
+      { $unwind: "$foodItemDetails" },
+      {
+        $match: {
+          "foodItemDetails.donorId": donorObjectId
         }
       },
       {
         $group: {
           _id: null,
-          totalQuantity: { $sum: "$quantity" },
-          totalValue: { $sum: { $multiply: ["$quantity", "$pricePerUnit"] } },
+          totalQuantity: { $sum: "$foodItemDetails.quantity" },
+          totalValue: { $sum: { $multiply: ["$foodItemDetails.quantity", 50] } },
           totalDonations: { $sum: 1 }
         }
       }
     ]);
 
     // Tax Exemption Calculation (assuming 30% tax exemption on donated food value)
-    const taxExemption = totalDonations[0]?.totalValue * 0.30 || 0;
+    const taxExemption = (totalDonations[0]?.totalValue || 0) * 0.30;
 
     res.status(200).json({
       success: true,
@@ -95,4 +118,4 @@ const getUserDashboardStats = async (req, res) => {
   }
 };
 
-export { getUserDashboardStats }; 
+export { getUserDashboardStats };

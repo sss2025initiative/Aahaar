@@ -35,6 +35,7 @@ const CreateFoodInfo=asyncHandler(async(req , res)=>{
     }
 
     for(const item of foodItemDetails) {
+        item.donorId = req.user._id;
         
         if(item.imageUrl && !Array.isArray(item.imageUrl)) {
             res.status(400);

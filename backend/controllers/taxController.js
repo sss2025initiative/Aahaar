@@ -1,4 +1,4 @@
-import asyncHandler from "../middlewares/asyncHandler";
+import asyncHandler from "../middlewares/asyncHandler.js";
 import FoodInfo from "../models/foodInfoModel.js";
 import Tax from "../models/taxModel.js";
 
@@ -65,7 +65,7 @@ const calculateTaxForExemption = asyncHandler(async (req, res) => {
     let totalDonationValue = 0;
     const itemizedExemptions = [];
     
-    for (const foodItem of donation.foodItems) {
+    for (const foodItem of (donation.foodItemDetails || [])) {
         const taxRate = foodRates[foodItem.category] || 0.15; 
         
         const baseValue = categoryBaseValues[foodItem.category] || 35;
@@ -97,9 +97,11 @@ const calculateTaxForExemption = asyncHandler(async (req, res) => {
     totalDonationValue = Math.round(totalDonationValue * 100) / 100;
     totalExemptionAmount = Math.round(totalExemptionAmount * 100) / 100;
     
+    const donorId = donation.foodItemDetails?.[0]?.donorId;
+    
     const taxExemption = await Tax.create({
         totalExemption: totalExemptionAmount,
-        userReceivingTax: donation.donorId,
+        userReceivingTax: donorId,
         donationId: donation._id,
         donationValue: totalDonationValue,
         exemptionDate: currentDate,

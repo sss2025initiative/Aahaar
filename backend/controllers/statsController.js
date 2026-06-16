@@ -1,6 +1,6 @@
-//stats controller
 import NGO from "../models/ngoModel.js";
 import FoodInfo from "../models/foodInfoModel.js";
+import User from "../models/userModel.js";
 
 const getStats = async (req, res) => {
   try {
@@ -8,23 +8,31 @@ const getStats = async (req, res) => {
     const totalNGOs = await NGO.countDocuments();
     const approvedNGOs = await NGO.countDocuments({ isApproved: true });
 
-    // Donor Statistics
-    // Update Donor/Donation statistics to use FoodInfo model
-    const totalDonors = await FoodInfo.countDocuments();
-    const approvedDonors = await FoodInfo.countDocuments({ isApproved: true });
-    
-    // Top Donors using FoodInfo model
+    // Donor/Donation Statistics
+    const totalDonationsCount = await FoodInfo.countDocuments();
+    const approvedDonationsCount = await FoodInfo.countDocuments({ isApproved: true });
+    const pendingDonationsCount = await FoodInfo.countDocuments({ status: "pending" });
+
+    // User Statistics
+    const totalUsersCount = await User.countDocuments();
+
+    // Distinct Cities Count
+    const cities = await FoodInfo.distinct("contactDetails.city");
+    const citiesCount = cities.length;
+
+    // Top Donors using FoodInfo model (unwind details)
     const topDonors = await FoodInfo.aggregate([
+        { $unwind: "$foodItemDetails" },
         {
             $group: {
-                _id: "$donorId",
-                totalDonated: { $sum: "$quantity" },
+                _id: "$foodItemDetails.donorId",
+                totalDonated: { $sum: "$foodItemDetails.quantity" },
                 donationCount: { $sum: 1 }
             }
         },
         {
             $lookup: {
-                from: "users",  // Assuming donor info is in users collection
+                from: "users",
                 localField: "_id",
                 foreignField: "_id",
                 as: "donorInfo"
@@ -32,7 +40,7 @@ const getStats = async (req, res) => {
         },
         {
             $project: {
-                name: { $arrayElemAt: ["$donorInfo.name", 0] },
+                name: { $concat: [{ $arrayElemAt: ["$donorInfo.firstName", 0] }, " ", { $arrayElemAt: ["$donorInfo.surname", 0] }] },
                 totalDonated: 1,
                 donationCount: 1
             }
@@ -50,10 +58,11 @@ const getStats = async (req, res) => {
                 },
             },
         },
+        { $unwind: "$foodItemDetails" },
         {
             $group: {
                 _id: { $dayOfWeek: "$createdAt" },
-                quantity: { $sum: "$quantity" },
+                quantity: { $sum: "$foodItemDetails.quantity" },
                 count: { $sum: 1 },
             },
         },
@@ -69,10 +78,11 @@ const getStats = async (req, res) => {
                 },
             },
         },
+        { $unwind: "$foodItemDetails" },
         {
             $group: {
                 _id: { $month: "$createdAt" },
-                quantity: { $sum: "$quantity" },
+                quantity: { $sum: "$foodItemDetails.quantity" },
                 count: { $sum: 1 },
             },
         },
@@ -81,10 +91,11 @@ const getStats = async (req, res) => {
     
     // Yearly Donations using FoodInfo
     const yearlyDonations = await FoodInfo.aggregate([
+        { $unwind: "$foodItemDetails" },
         {
             $group: {
                 _id: { $year: "$createdAt" },
-                quantity: { $sum: "$quantity" },
+                quantity: { $sum: "$foodItemDetails.quantity" },
                 count: { $sum: 1 },
             },
         },
@@ -92,7 +103,7 @@ const getStats = async (req, res) => {
     ]);
 
     // Average Donor Approval Time
-    const donorApprovalTimes = await Donor.aggregate([
+    const donorApprovalTimes = await FoodInfo.aggregate([
       {
         $match: {
           isApproved: true,
@@ -150,20 +161,26 @@ const getStats = async (req, res) => {
     ]);
 
     const totalQtyDonated = await FoodInfo.aggregate([
+      { $unwind: "$foodItemDetails" },
       {
         $group: {
           _id: null,
-          totalQty: {$sum: "$quantity"}
+          totalQty: {$sum: "$foodItemDetails.quantity"}
         }
       }
-    ]) 
+    ]);
 
-    const totalQtyByCategory = await FoodInfo.aggregate([{
-      $group: {
-        _id: "$category",
-        totalQty: {$sum: "$quantity"}
+    const totalQtyByCategory = await FoodInfo.aggregate([
+      { $unwind: "$foodItemDetails" },
+      {
+        $group: {
+          _id: "$foodItemDetails.category",
+          totalQty: {$sum: "$foodItemDetails.quantity"}
+        }
       }
-    }])
+    ]);
+
+    const totalQty = totalQtyDonated[0]?.totalQty || 0;
 
     res.status(200).json({
       success: true,
@@ -171,21 +188,18 @@ const getStats = async (req, res) => {
         ngo: {
           total: totalNGOs,
           approved: approvedNGOs,
-          // Remove pending: pendingNGOs since it's not defined
         },
         donor: {
-          total: totalDonors,
-          approved: approvedDonors,
-          totalQtyDonated: totalQtyDonated[0]?.totalQty || 0,
+          total: totalDonationsCount,
+          approved: approvedDonationsCount,
+          totalQtyDonated: totalQty,
           totalQtyByCategory: totalQtyByCategory,
-          // Remove pending: pendingDonors since it's not defined
           topDonors,
         },
         donations: {
           weekly: weeklyDonations,
           monthly: monthlyDonations,
           yearly: yearlyDonations,
-          // Remove categoryDistribution since it's not defined
         },
         approvalMetrics: {
           donor: {
@@ -202,6 +216,14 @@ const getStats = async (req, res) => {
           },
         },
       },
+      // Flat fields expected by AdminDashboard.jsx
+      totalDonations: totalDonationsCount,
+      totalUsers: totalUsersCount,
+      totalNgos: totalNGOs,
+      mealsServed: totalQty,
+      approvedDonations: approvedDonationsCount,
+      pendingDonations: pendingDonationsCount,
+      citiesCount: citiesCount
     });
   } catch (error) {
     res.status(500).json({

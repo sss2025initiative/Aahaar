@@ -116,6 +116,14 @@ const uploadAdharDocument = asyncHandler(async (req, res) => {
     const filesUrls = {
       adharVerificationDocument: files.adharVerificationDocument?.[0]?.location,
     };
+    
+    // Save the document URL to the user record in database
+    const user = await User.findById(req.user._id);
+    if (user) {
+      user.adharVerificationDocument = filesUrls.adharVerificationDocument;
+      await user.save();
+    }
+
     res.status(200).json({
       message: "Files uploaded successfully",
       filesUrls,
