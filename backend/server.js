@@ -17,6 +17,17 @@ const port = process.env.PORT || 5000;
 connectDb();
 
 const app = express();
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  res.header("Access-Control-Allow-Origin", origin || "http://localhost:5173");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, Content-Length, X-Requested-With");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -28,6 +39,10 @@ app.use('/aahar/ngo', ngoRoutes);
 app.use('/aahar/admin', adminRoutes);
 app.use('/aahar/user-stats', userStatsRoutes);
 app.use('/aahar/stats', statsRoutes);
+
+app.get('/', (req, res) => {
+  res.json({ message: "Welcome to Aahaar API. The server is running successfully." });
+});
 
 // Error handling middleware should be after all routes
 app.use(notFound);

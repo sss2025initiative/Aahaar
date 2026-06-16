@@ -6,12 +6,8 @@ import Ngo from "../models/ngoModel.js";
 //get Ngos based on their cities
 const getNgoBasedOnCity = asyncHandler(async(req, res) => {
     const userCity = req.user.city;
-    const ngos = await Ngo.find({ city: userCity });
-    if (ngos.length > 0) {
-        res.status(200).json(ngos);
-    } else {
-        res.status(404).json({ message: "No NGOs found in your city" });
-    }
+    const ngos = await Ngo.find({ ngoCity: userCity });
+    res.status(200).json(ngos);
 })
 
 //approve Ngo
@@ -28,17 +24,11 @@ const approveNgo = asyncHandler(async (req, res) => {
 })
 
 //getting users based on their cities
-const getUsersBasedOnCity = asyncHandler(async (req, res) =>
-{
+const getUsersBasedOnCity = asyncHandler(async (req, res) => {
     const userCity = req.user.city;
     const users = await User.find({ city: userCity });
-    if (users.length > 0) {
-        res.status(200).json(users);
-    } else {
-        res.status(404).json({ message: "No users found in your city" });
-    }
-}
-)
+    res.status(200).json(users);
+})
 
 //verify user 
 const verifyUser = asyncHandler(async (req, res) => {
@@ -97,12 +87,12 @@ const makeUserAdmin = asyncHandler(async (req, res) => {
 
 // @desc    Get food info by city
 const getFoodInfoByCity=asyncHandler(async(req ,res)=>{
-    const {city}=req.params;
-    const foodInfo=await FoodInfo.find({city});
-    if(!foodInfo){
-        return res.status(404).json({message:"No food info found"});
-    }
-    return res.status(200).json({foodInfo,message:"Food info fetched successfully"});
+    const city = req.user.city;
+    const foodInfo=await FoodInfo.find({ "contactDetails.city": city });
+    return res.status(200).json({
+        foodInfo,
+        message: "Food info fetched successfully"
+    });
 })
 
 
