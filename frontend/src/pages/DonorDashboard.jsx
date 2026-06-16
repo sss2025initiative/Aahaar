@@ -38,7 +38,13 @@ function SkeletonDonation() {
 const FILTER_OPTIONS = ['all', 'pending', 'approved', 'rejected'];
 
 export default function DonorDashboard() {
-  const { user, logout, uploadAadhaar } = useAuth();
+  const { user, logout, uploadAadhaar, sendAadhaarOTP, verifyAadhaarOTP } = useAuth();
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [aadhaarNum, setAadhaarNum] = useState('');
+  const [otpVal, setOtpVal] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState('');
   const navigate = useNavigate();
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -233,7 +239,20 @@ export default function DonorDashboard() {
               </p>
             </div>
             {!user?.adharVerificationDocument && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <button
+                  className="btn-teal"
+                  style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+                  onClick={() => {
+                    setShowOtpModal(true);
+                    setAadhaarNum('');
+                    setOtpVal('');
+                    setOtpSent(false);
+                    setOtpError('');
+                  }}
+                >
+                  ⚡ Verify via OTP (Instant)
+                </button>
                 <label className="btn-secondary" style={{ padding: '8px 18px', fontSize: '0.85rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   📁 Select Aadhaar
                   <input
@@ -261,8 +280,23 @@ export default function DonorDashboard() {
               </div>
             )}
             {user?.adharVerificationDocument && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-yellow)', fontSize: '0.85rem', fontWeight: 600, background: 'rgba(234,179,8,0.08)', padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(234,179,8,0.15)' }}>
-                <span>⏳</span> Review in Progress
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <button
+                  className="btn-teal"
+                  style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+                  onClick={() => {
+                    setShowOtpModal(true);
+                    setAadhaarNum('');
+                    setOtpVal('');
+                    setOtpSent(false);
+                    setOtpError('');
+                  }}
+                >
+                  ⚡ Verify via OTP (Instant)
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-yellow)', fontSize: '0.85rem', fontWeight: 600, background: 'rgba(234,179,8,0.08)', padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(234,179,8,0.15)' }}>
+                  <span>⏳</span> Review in Progress
+                </div>
               </div>
             )}
           </div>
@@ -398,6 +432,113 @@ export default function DonorDashboard() {
           </div>
         )}
       </main>
+
+      {/* Aadhaar OTP Verification Modal */}
+      {showOtpModal && (
+        <div className="modal-overlay" onClick={() => !otpLoading && setShowOtpModal(false)}>
+          <div className="modal" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal__icon">🛡️</div>
+            <h3 className="modal__title">Aadhaar OTP Verification</h3>
+            <p className="modal__text">
+              {!otpSent 
+                ? 'Enter your 12-digit Aadhaar number. A mock verification request will be initialized.' 
+                : 'For demo purposes, we have sent a simulated OTP code to your registered mobile. Use OTP code: 123456'}
+            </p>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setOtpError('');
+              if (!otpSent) {
+                if (!/^\d{12}$/.test(aadhaarNum)) {
+                  setOtpError('Aadhaar number must be exactly 12 digits');
+                  return;
+                }
+                setOtpLoading(true);
+                const res = await sendAadhaarOTP(aadhaarNum);
+                setOtpLoading(false);
+                if (res.success) {
+                  setOtpSent(true);
+                  showToast(res.message, 'success');
+                } else {
+                  setOtpError(res.error);
+                }
+              } else {
+                if (!otpVal) {
+                  setOtpError('Please enter the OTP code');
+                  return;
+                }
+                setOtpLoading(true);
+                const res = await verifyAadhaarOTP(aadhaarNum, otpVal);
+                setOtpLoading(false);
+                if (res.success) {
+                  showToast('Aadhaar verified successfully! 🎉', 'success');
+                  setShowOtpModal(false);
+                } else {
+                  setOtpError(res.error);
+                }
+              }
+            }}>
+              {!otpSent ? (
+                <div className="form-group" style={{ marginBottom: 16 }}>
+                  <label className="form-label">Aadhaar Number</label>
+                  <input
+                    type="text"
+                    maxLength={12}
+                    className="form-input"
+                    placeholder="1234 5678 9012"
+                    value={aadhaarNum}
+                    onChange={(e) => setAadhaarNum(e.target.value.replace(/\D/g, ''))}
+                    disabled={otpLoading}
+                  />
+                </div>
+              ) : (
+                <div className="form-group" style={{ marginBottom: 16 }}>
+                  <label className="form-label">Enter OTP Code (123456)</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    className="form-input"
+                    placeholder="••••••"
+                    value={otpVal}
+                    onChange={(e) => setOtpVal(e.target.value.replace(/\D/g, ''))}
+                    disabled={otpLoading}
+                  />
+                </div>
+              )}
+
+              {otpError && (
+                <div style={{ color: 'var(--color-red)', fontSize: '0.82rem', marginBottom: 14, fontWeight: 600 }}>
+                  ⚠️ {otpError}
+                </div>
+              )}
+
+              <div className="modal__actions">
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => setShowOtpModal(false)}
+                  disabled={otpLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={otpLoading}
+                >
+                  {otpLoading ? (
+                    <><span className="spinner" /> Loading...</>
+                  ) : !otpSent ? (
+                    'Send OTP Code →'
+                  ) : (
+                    'Verify & Approve ✓'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Delete Modal */}
       {deleteConfirm && (

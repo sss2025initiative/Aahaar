@@ -23,6 +23,11 @@ const uploadNgoDocumentsContrller = asyncHandler(async (req, res) => {
 
 // @desc    Register NGO details   
 const ngoDetailsController = asyncHandler(async (req, res) => {
+  if (!req.user || !req.user.isVerified) {
+    res.status(403);
+    throw new Error("Only Aadhaar-verified users can register an NGO");
+  }
+
   const { ngoName, ngoEmail, ngoPhone, ngoAddress, ngoCity, ngoState, ngoPurpose, ngoWebsite, certificationOfRegistration, ownerPanCard, prevousWorkReport } = req.body;
 
   const alreadyRegisteredNgo = await Ngo.find({ ngoEmail });

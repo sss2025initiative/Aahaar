@@ -14,7 +14,7 @@ const INDIAN_STATES = [
 ];
 
 export default function RegisterPage() {
-  const { register, uploadAadhaar, loading } = useAuth();
+  const { register, uploadAadhaar, sendAadhaarOTP, verifyAadhaarOTP, loading } = useAuth();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(0);
@@ -25,6 +25,13 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState({});
   const [showPass, setShowPass] = useState(false);
   const [aadhaarFile, setAadhaarFile] = useState(null);
+
+  // Aadhaar verification state
+  const [verifMethod, setVerifMethod] = useState('otp'); // 'otp' or 'file'
+  const [aadhaarNum, setAadhaarNum] = useState('');
+  const [otpVal, setOtpVal] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -63,8 +70,10 @@ export default function RegisterPage() {
 
   const prevStep = () => setStep((s) => s - 1);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSkip = async (e) => {
+    if (e) e.preventDefault();
+    setErrors({});
+    setOtpLoading(true);
     const result = await register({
       firstName: form.firstName,
       surname: form.surname,
@@ -75,22 +84,102 @@ export default function RegisterPage() {
       state: form.state,
       country: form.country,
     });
+    setOtpLoading(false);
     if (result.success) {
-      if (aadhaarFile) {
-        showToast('Uploading Aadhaar...', 'success');
-        const uploadResult = await uploadAadhaar(aadhaarFile);
-        if (uploadResult.success) {
-          showToast(`Welcome to Aahaar! Verification requested. 🎉`, 'success');
-        } else {
-          showToast(`Aadhaar failed: ${uploadResult.error}. Retry on your dashboard.`, 'warning');
-        }
-      } else {
-        showToast(`Welcome to Aahaar, ${result.user.firstName}! 🎉`, 'success');
-      }
+      showToast(`Welcome to Aahaar, ${result.user.firstName}! 🎉`, 'success');
       navigate('/dashboard');
     } else {
       showToast(result.error || 'Registration failed', 'error');
       setErrors({ submit: result.error });
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setErrors({});
+    
+    if (verifMethod === 'otp') {
+      if (!/^\d{12}$/.test(aadhaarNum)) {
+        setErrors({ submit: 'Aadhaar number must be exactly 12 digits' });
+        return;
+      }
+      if (!otpSent) {
+        setOtpLoading(true);
+        // Register the user first to log them in, because sending/verifying Aadhaar OTP endpoints require auth
+        const regResult = await register({
+          firstName: form.firstName,
+          surname: form.surname,
+          email: form.email,
+          password: form.password,
+          age: Number(form.age),
+          city: form.city,
+          state: form.state,
+          country: form.country,
+        });
+        if (!regResult.success) {
+          setOtpLoading(false);
+          setErrors({ submit: regResult.error || 'Registration failed.' });
+          return;
+        }
+        
+        // Account registered, now send OTP
+        const otpResult = await sendAadhaarOTP(aadhaarNum);
+        setOtpLoading(false);
+        if (otpResult.success) {
+          setOtpSent(true);
+          showToast('Account created and ' + otpResult.message, 'success');
+        } else {
+          // Registered but OTP failed
+          showToast(`Account registered, but OTP failed: ${otpResult.error}. Please verify from dashboard.`, 'warning');
+          navigate('/dashboard');
+        }
+        return;
+      } else {
+        if (!otpVal) {
+          setErrors({ submit: 'Please enter the OTP code' });
+          return;
+        }
+        setOtpLoading(true);
+        // User is logged in now, verify OTP
+        const verResult = await verifyAadhaarOTP(aadhaarNum, otpVal);
+        setOtpLoading(false);
+        if (verResult.success) {
+          showToast('Aadhaar verified successfully! Welcome to Aahaar! 🎉', 'success');
+          navigate('/dashboard');
+        } else {
+          setErrors({ submit: verResult.error || 'OTP verification failed. Please try again or skip.' });
+        }
+        return;
+      }
+    } else {
+      // Document upload method
+      const result = await register({
+        firstName: form.firstName,
+        surname: form.surname,
+        email: form.email,
+        password: form.password,
+        age: Number(form.age),
+        city: form.city,
+        state: form.state,
+        country: form.country,
+      });
+      if (result.success) {
+        if (aadhaarFile) {
+          showToast('Uploading Aadhaar...', 'success');
+          const uploadResult = await uploadAadhaar(aadhaarFile);
+          if (uploadResult.success) {
+            showToast(`Welcome to Aahaar! Verification requested. 🎉`, 'success');
+          } else {
+            showToast(`Aadhaar failed: ${uploadResult.error}. Retry on your dashboard.`, 'warning');
+          }
+        } else {
+          showToast(`Welcome to Aahaar, ${result.user.firstName}! 🎉`, 'success');
+        }
+        navigate('/dashboard');
+      } else {
+        showToast(result.error || 'Registration failed', 'error');
+        setErrors({ submit: result.error });
+      }
     }
   };
 
@@ -271,41 +360,117 @@ export default function RegisterPage() {
                 <span style={{ fontSize: '3rem' }}>🛡️</span>
                 <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginTop: 10, marginBottom: 6 }}>Trust Verification</h3>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  Aahaar builds a verified donor network. Upload your Aadhaar card (PDF or image) to instantly verify your identity and expedite donation approvals.
+                  Aahaar builds a verified donor network. Choose to verify instantly via Aadhaar OTP or upload document for manual verification.
                 </p>
               </div>
-              <div className="form-group" style={{ marginBottom: 20 }}>
-                <label className="form-label">Aadhaar Card (PDF / Image) *</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <label className="btn-secondary" style={{ padding: '12px 20px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    📁 {aadhaarFile ? 'Change Aadhaar file' : 'Select Aadhaar Document'}
-                    <input
-                      type="file"
-                      accept=".pdf,image/*"
-                      style={{ display: 'none' }}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) setAadhaarFile(file);
-                      }}
-                    />
-                  </label>
-                  {aadhaarFile && (
-                    <div style={{ fontSize: '0.82rem', color: 'var(--color-teal)', fontWeight: 600, background: 'rgba(6,182,212,0.06)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(6,182,212,0.15)', wordBreak: 'break-all' }}>
-                      Selected: {aadhaarFile.name} ({(aadhaarFile.size / (1024 * 1024)).toFixed(2)} MB)
+
+              {/* Tab Selector */}
+              <div style={{ display: 'flex', gap: 10, marginBottom: 20, background: 'rgba(255,255,255,0.03)', padding: 4, borderRadius: 10, border: '1px solid var(--border-color)' }}>
+                <button
+                  type="button"
+                  onClick={() => { setVerifMethod('otp'); setErrors({}); }}
+                  style={{
+                    flex: 1, padding: '10px', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600,
+                    background: verifMethod === 'otp' ? 'var(--grad-primary)' : 'transparent',
+                    color: verifMethod === 'otp' ? '#fff' : 'var(--text-muted)',
+                    transition: 'all 0.3s'
+                  }}
+                  disabled={otpLoading}
+                >
+                  ⚡ Instant OTP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setVerifMethod('file'); setErrors({}); }}
+                  style={{
+                    flex: 1, padding: '10px', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600,
+                    background: verifMethod === 'file' ? 'var(--grad-primary)' : 'transparent',
+                    color: verifMethod === 'file' ? '#fff' : 'var(--text-muted)',
+                    transition: 'all 0.3s'
+                  }}
+                  disabled={otpLoading}
+                >
+                  📁 Upload File
+                </button>
+              </div>
+
+              {verifMethod === 'otp' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center', margin: '0 0 8px' }}>
+                    {!otpSent 
+                      ? 'Enter your 12-digit Aadhaar number to verify instantly via simulated OTP.' 
+                      : 'Simulated OTP sent! Enter OTP 123456 to verify and register.'}
+                  </p>
+                  {!otpSent ? (
+                    <div className="form-group">
+                      <label className="form-label">Aadhaar Number</label>
+                      <input
+                        type="text"
+                        maxLength={12}
+                        className="form-input"
+                        placeholder="1234 5678 9012"
+                        value={aadhaarNum}
+                        onChange={(e) => setAadhaarNum(e.target.value.replace(/\D/g, ''))}
+                        disabled={otpLoading}
+                      />
+                    </div>
+                  ) : (
+                    <div className="form-group">
+                      <label className="form-label">Enter OTP Code (use: 123456)</label>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        className="form-input"
+                        placeholder="••••••"
+                        value={otpVal}
+                        onChange={(e) => setOtpVal(e.target.value.replace(/\D/g, ''))}
+                        disabled={otpLoading}
+                      />
                     </div>
                   )}
                 </div>
-              </div>
-              {errors.submit && <div className="auth-error-box">⚠️ {errors.submit}</div>}
+              ) : (
+                <div className="form-group" style={{ marginBottom: 20 }}>
+                  <label className="form-label">Aadhaar Card (PDF / Image) *</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <label className="btn-secondary" style={{ padding: '12px 20px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      📁 {aadhaarFile ? 'Change Aadhaar file' : 'Select Aadhaar Document'}
+                      <input
+                        type="file"
+                        accept=".pdf,image/*"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) setAadhaarFile(file);
+                        }}
+                      />
+                    </label>
+                    {aadhaarFile && (
+                      <div style={{ fontSize: '0.82rem', color: 'var(--color-teal)', fontWeight: 600, background: 'rgba(6,182,212,0.06)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(6,182,212,0.15)', wordBreak: 'break-all' }}>
+                        Selected: {aadhaarFile.name} ({(aadhaarFile.size / (1024 * 1024)).toFixed(2)} MB)
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {errors.submit && <div className="auth-error-box" style={{ color: 'var(--color-red)', fontSize: '0.82rem', marginBottom: 14, fontWeight: 600 }}>⚠️ {errors.submit}</div>}
+
               <div style={{ display: 'flex', gap: 10 }}>
-                <button type="button" onClick={prevStep} className="btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: '13px' }}>← Back</button>
-                <button type="submit" className="btn-primary" disabled={loading}
+                <button type="button" onClick={prevStep} className="btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: '13px' }} disabled={otpLoading}>← Back</button>
+                <button type="submit" className="btn-primary" disabled={otpLoading}
                   style={{ flex: 2, justifyContent: 'center', padding: '13px' }}>
-                  {loading ? <><span className="spinner" /> Registering...</> : '🚀 Complete Registration'}
+                  {otpLoading ? (
+                    <><span className="spinner" /> Loading...</>
+                  ) : verifMethod === 'otp' ? (
+                    !otpSent ? 'Send OTP & Register' : 'Verify & Complete'
+                  ) : (
+                    'Register & Upload'
+                  )}
                 </button>
               </div>
               <div style={{ textAlign: 'center', marginTop: 16 }}>
-                <button type="submit" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer', textDecoration: 'underline' }} disabled={loading}>
+                <button type="button" onClick={handleSkip} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer', textDecoration: 'underline' }} disabled={otpLoading}>
                   Skip verification for now
                 </button>
               </div>

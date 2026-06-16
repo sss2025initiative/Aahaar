@@ -19,7 +19,7 @@ const STEPS = [
 ];
 
 export default function CreateDonation() {
-  const { user } = useAuth();
+  const { user, sendAadhaarOTP, verifyAadhaarOTP } = useAuth();
   const navigate = useNavigate();
   const donorId = user?._id || user?.id;
 
@@ -29,6 +29,13 @@ export default function CreateDonation() {
   const [ngoPreference, setNgoPreference] = useState('random');
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+
+  // Aadhaar lock state
+  const [aadhaarNum, setAadhaarNum] = useState('');
+  const [otpVal, setOtpVal] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState('');
 
   const updateItem = (idx, field, value) => {
     setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it));
@@ -92,6 +99,123 @@ export default function CreateDonation() {
 
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
   const minDate = tomorrow.toISOString().split('T')[0];
+
+  if (!user?.isVerified) {
+    return (
+      <div className="create-donation-page">
+        <div className="create-donation-header">
+          <div className="container">
+            <div className="breadcrumb">
+              <Link to="/dashboard" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Dashboard</Link>
+              <span>/</span>
+              <span>Create Donation</span>
+            </div>
+            <h1 style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: 8, marginBottom: 6 }}>
+              Create Food <span className="gradient-text">Donation</span> 🍱
+            </h1>
+          </div>
+        </div>
+
+        <div className="create-donation-body" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '65vh', padding: '40px 24px' }}>
+          <div className="glass-card" style={{ maxWidth: 500, width: '100%', padding: '40px 32px', textAlign: 'center', border: '1px solid rgba(249,115,22,0.15)' }}>
+            <div style={{ fontSize: '4.5rem', marginBottom: 20, animation: 'float 3s ease-in-out infinite' }}>🔒</div>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: 12 }}>Aadhaar Verification Required</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: 28 }}>
+              To maintain the security and trust of our food distribution platform, please verify your identity using Aadhaar OTP.
+              Once verified, you can immediately proceed to submit food donations.
+            </p>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setOtpError('');
+              if (!otpSent) {
+                if (!/^\d{12}$/.test(aadhaarNum)) {
+                  setOtpError('Aadhaar number must be exactly 12 digits');
+                  return;
+                }
+                setOtpLoading(true);
+                const res = await sendAadhaarOTP(aadhaarNum);
+                setOtpLoading(false);
+                if (res.success) {
+                  setOtpSent(true);
+                  showToast(res.message, 'success');
+                } else {
+                  setOtpError(res.error);
+                }
+              } else {
+                if (!otpVal) {
+                  setOtpError('Please enter the OTP code');
+                  return;
+                }
+                setOtpLoading(true);
+                const res = await verifyAadhaarOTP(aadhaarNum, otpVal);
+                setOtpLoading(false);
+                if (res.success) {
+                  showToast('Aadhaar verified successfully! 🎉', 'success');
+                } else {
+                  setOtpError(res.error);
+                }
+              }
+            }}>
+              {!otpSent ? (
+                <div className="form-group" style={{ marginBottom: 16, textAlign: 'left' }}>
+                  <label className="form-label">Aadhaar Number</label>
+                  <input
+                    type="text"
+                    maxLength={12}
+                    className="form-input"
+                    placeholder="1234 5678 9012"
+                    value={aadhaarNum}
+                    onChange={(e) => setAadhaarNum(e.target.value.replace(/\D/g, ''))}
+                    disabled={otpLoading}
+                  />
+                </div>
+              ) : (
+                <div className="form-group" style={{ marginBottom: 16, textAlign: 'left' }}>
+                  <label className="form-label">Enter OTP Code (use: 123456)</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    className="form-input"
+                    placeholder="••••••"
+                    value={otpVal}
+                    onChange={(e) => setOtpVal(e.target.value.replace(/\D/g, ''))}
+                    disabled={otpLoading}
+                  />
+                </div>
+              )}
+
+              {otpError && (
+                <div style={{ color: 'var(--color-red)', fontSize: '0.82rem', marginBottom: 14, fontWeight: 600 }}>
+                  ⚠️ {otpError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+                <Link to="/dashboard" className="btn-ghost" style={{ flex: 1, justifyContent: 'center' }}>
+                  Cancel
+                </Link>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ flex: 1, justifyContent: 'center' }}
+                  disabled={otpLoading}
+                >
+                  {otpLoading ? (
+                    <><span className="spinner" /> Loading...</>
+                  ) : !otpSent ? (
+                    'Verify Identity'
+                  ) : (
+                    'Confirm OTP'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="create-donation-page">

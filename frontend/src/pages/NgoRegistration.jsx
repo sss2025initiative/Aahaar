@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import { showToast } from '../components/Toast';
 
@@ -47,6 +48,7 @@ const SECTIONS = [
 
 export default function NgoRegistration() {
   const navigate = useNavigate();
+  const { user, sendAadhaarOTP, verifyAadhaarOTP } = useAuth();
   const [form, setForm] = useState({
     ngoName: '', ngoEmail: '', ngoPhone: '', ngoAddress: '', ngoCity: '',
     ngoState: '', ngoPurpose: '', ngoWebsite: '', certificationOfRegistration: '',
@@ -55,6 +57,13 @@ export default function NgoRegistration() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  // Aadhaar lock state
+  const [aadhaarNum, setAadhaarNum] = useState('');
+  const [otpVal, setOtpVal] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -95,6 +104,162 @@ export default function NgoRegistration() {
       setLoading(false);
     }
   };
+
+  // Gating checks
+  if (!user) {
+    return (
+      <div className="ngo-page">
+        <div className="ngo-hero">
+          <div className="container">
+            <div className="section-tag" style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.2)', color: 'var(--color-red)' }}>
+              🔒 Access Restricted
+            </div>
+            <h1 style={{ fontSize: 'clamp(2rem,4vw,2.8rem)', fontWeight: 800, marginBottom: 12 }}>
+              Partner With <span style={{ background: 'linear-gradient(135deg,#ef4444,#dc2626)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Aahaar</span>
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
+              Join us in our mission to feed the needy. To register an NGO, you must log in first.
+            </p>
+          </div>
+        </div>
+        <div className="ngo-form-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '40vh', padding: '0 24px' }}>
+          <div className="glass-card" style={{ maxWidth: 500, width: '100%', padding: '40px 32px', textAlign: 'center', border: '1px solid rgba(239,68,68,0.15)' }}>
+            <div style={{ fontSize: '4.5rem', marginBottom: 20, animation: 'float 3s ease-in-out infinite' }}>🔒</div>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: 12 }}>Authentication Required</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: 28 }}>
+              To register and partner your NGO with Aahaar, you must have an active verified account.
+              Please sign in or create a new account to get started.
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <Link to="/login" className="btn-primary" style={{ flex: 1, justifyContent: 'center', background: 'linear-gradient(135deg,#06b6d4,#0284c7)' }}>
+                Sign In
+              </Link>
+              <Link to="/register" className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>
+                Create Account
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user.isVerified) {
+    return (
+      <div className="ngo-page">
+        <div className="ngo-hero">
+          <div className="container">
+            <div className="section-tag" style={{ background: 'rgba(234,179,8,0.1)', borderColor: 'rgba(234,179,8,0.2)', color: 'var(--color-yellow)' }}>
+              🛡️ Verification Pending
+            </div>
+            <h1 style={{ fontSize: 'clamp(2rem,4vw,2.8rem)', fontWeight: 800, marginBottom: 12 }}>
+              Partner With <span style={{ background: 'linear-gradient(135deg,#fbbf24,#f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Aahaar</span>
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
+              Join us in our mission to feed the needy. Please verify your identity to proceed.
+            </p>
+          </div>
+        </div>
+        <div className="ngo-form-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh', padding: '0 24px' }}>
+          <div className="glass-card" style={{ maxWidth: 500, width: '100%', padding: '40px 32px', textAlign: 'center', border: '1px solid rgba(234,179,8,0.15)' }}>
+            <div style={{ fontSize: '4.5rem', marginBottom: 20, animation: 'float 3s ease-in-out infinite' }}>🛡️</div>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: 12 }}>Aadhaar Verification Required</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: 28 }}>
+              To verify and establish a secure NGO profile, please complete Aadhaar verification.
+              Once verified, you will immediately unlock the NGO registration form.
+            </p>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setOtpError('');
+              if (!otpSent) {
+                if (!/^\d{12}$/.test(aadhaarNum)) {
+                  setOtpError('Aadhaar number must be exactly 12 digits');
+                  return;
+                }
+                setOtpLoading(true);
+                const res = await sendAadhaarOTP(aadhaarNum);
+                setOtpLoading(false);
+                if (res.success) {
+                  setOtpSent(true);
+                  showToast(res.message, 'success');
+                } else {
+                  setOtpError(res.error);
+                }
+              } else {
+                if (!otpVal) {
+                  setOtpError('Please enter the OTP code');
+                  return;
+                }
+                setOtpLoading(true);
+                const res = await verifyAadhaarOTP(aadhaarNum, otpVal);
+                setOtpLoading(false);
+                if (res.success) {
+                  showToast('Aadhaar verified successfully! 🎉', 'success');
+                } else {
+                  setOtpError(res.error);
+                }
+              }
+            }}>
+              {!otpSent ? (
+                <div className="form-group" style={{ marginBottom: 16, textAlign: 'left' }}>
+                  <label className="form-label">Aadhaar Number</label>
+                  <input
+                    type="text"
+                    maxLength={12}
+                    className="form-input"
+                    placeholder="1234 5678 9012"
+                    value={aadhaarNum}
+                    onChange={(e) => setAadhaarNum(e.target.value.replace(/\D/g, ''))}
+                    disabled={otpLoading}
+                  />
+                </div>
+              ) : (
+                <div className="form-group" style={{ marginBottom: 16, textAlign: 'left' }}>
+                  <label className="form-label">Enter OTP Code (use: 123456)</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    className="form-input"
+                    placeholder="••••••"
+                    value={otpVal}
+                    onChange={(e) => setOtpVal(e.target.value.replace(/\D/g, ''))}
+                    disabled={otpLoading}
+                  />
+                </div>
+              )}
+
+              {otpError && (
+                <div style={{ color: 'var(--color-red)', fontSize: '0.82rem', marginBottom: 14, fontWeight: 600 }}>
+                  ⚠️ {otpError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+                <Link to="/" className="btn-ghost" style={{ flex: 1, justifyContent: 'center' }}>
+                  Cancel
+                </Link>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ flex: 1, justifyContent: 'center', background: 'linear-gradient(135deg,#06b6d4,#0284c7)' }}
+                  disabled={otpLoading}
+                >
+                  {otpLoading ? (
+                    <><span className="spinner" /> Loading...</>
+                  ) : !otpSent ? (
+                    'Verify Identity'
+                  ) : (
+                    'Confirm OTP'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (submitted) {
     return (

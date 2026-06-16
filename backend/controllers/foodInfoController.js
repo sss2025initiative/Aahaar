@@ -18,6 +18,11 @@ const uploadFoodImages = asyncHandler(async (req, res) => {
 });
 
 const CreateFoodInfo=asyncHandler(async(req , res)=>{
+    if (!req.user || !req.user.isVerified) {
+        res.status(403);
+        throw new Error("Only Aadhaar-verified users can create food donations");
+    }
+
     const {
         foodItemDetails,
         fullAddress,

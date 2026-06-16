@@ -109,6 +109,58 @@ const uploadAdharDocument = asyncHandler(async (req, res) => {
 }
 );
 
+// Simulate sending OTP for Aadhaar verification
+const sendAadhaarOtp = asyncHandler(async (req, res) => {
+  const { aadhaarNumber } = req.body;
+  if (!aadhaarNumber || !/^\d{12}$/.test(aadhaarNumber)) {
+    res.status(400);
+    throw new Error("Please enter a valid 12-digit Aadhaar number");
+  }
+  res.status(200).json({
+    success: true,
+    message: "Mock OTP sent to mobile registered with Aadhaar ending in " + aadhaarNumber.slice(-4),
+  });
+});
 
+// Simulate verifying OTP for Aadhaar verification
+const verifyAadhaarOtp = asyncHandler(async (req, res) => {
+  const { aadhaarNumber, otp } = req.body;
+  if (!aadhaarNumber || !/^\d{12}$/.test(aadhaarNumber) || !otp) {
+    res.status(400);
+    throw new Error("Aadhaar number and OTP are required");
+  }
 
-export { authUser, registerUser, logoutUser, uploadAdharDocument };
+  if (otp !== "123456") {
+    res.status(400);
+    throw new Error("Invalid OTP. For demo purposes, use OTP: 123456");
+  }
+
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  user.isVerified = true;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Aadhaar verified successfully!",
+    user: {
+      _id: user._id,
+      firstName: user.firstName,
+      surname: user.surname,
+      email: user.email,
+      age: user.age,
+      city: user.city,
+      state: user.state,
+      country: user.country,
+      isVerified: user.isVerified,
+      isAdmin: user.isAdmin,
+      adharVerificationDocument: user.adharVerificationDocument,
+    }
+  });
+});
+
+export { authUser, registerUser, logoutUser, uploadAdharDocument, sendAadhaarOtp, verifyAadhaarOtp };
