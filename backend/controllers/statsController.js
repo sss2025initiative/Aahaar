@@ -1,5 +1,5 @@
 //stats controller
-import NGO from "../models/NGO.js";
+import NGO from "../models/ngoModel.js";
 import FoodInfo from "../models/foodInfoModel.js";
 
 const getStats = async (req, res) => {
