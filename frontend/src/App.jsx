@@ -4,122 +4,95 @@ import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+            function App() {
+              return (
+                <div className="container">
+                  <header className="hero">
+                    <h1>AAHAAR</h1>
+                    <p className="tag">Donation Orchestration & Tax Benefit Platform</p>
+                    <div className="actions">
+                      <a className="btn" href="https://github.com/sss2025initiative/Aahaar" target="_blank" rel="noreferrer">Project Repo</a>
+                      <a className="btn ghost" href="https://github.com/Santoshpatel112/Aahaar" target="_blank" rel="noreferrer">Fork (Santoshpatel112)</a>
+                    </div>
+                  </header>
 
-  return (
-    <>
+                  <main>
+                    <section className="card">
+                      <h2>Features</h2>
+                      <ul>
+                        <li>User Authentication (Donors, NGOs, Recipients)</li>
+                        <li>Food Donation Management</li>
+                        <li>Real-time Food Availability Tracking</li>
+                        <li>Location-based Food Distribution</li>
+                        <li>Contact Information Management</li>
+                        <li>Food Category Classification</li>
+                        <li>Status Tracking (Pending, In Transit, Delivered)</li>
+                      </ul>
+                    </section>
 
+                    <section className="card">
+                      <h2>Tech Stack</h2>
+                      <div className="cols">
+                        <div>
+                          <h3>Backend</h3>
+                          <ul>
+                            <li>Node.js / Express</li>
+                            <li>MongoDB / Mongoose</li>
+                            <li>JWT Authentication</li>
+                            <li>AWS S3 for uploads</li>
+                          </ul>
+                        </div>
+                        <div>
+                          <h3>Frontend</h3>
+                          <ul>
+                            <li>React</li>
+                            <li>Redux (planned)</li>
+                            <li>Material-UI (planned)</li>
+                            <li>Axios</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </section>
 
-    
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+                    <section className="card">
+                      <h2>Getting Started</h2>
+                      <p>Run backend and frontend locally:</p>
+                      <pre>
+                        <code>
+            {`# backend
+            cd backend
+            npm install
+            npm run dev
 
-      <div className="ticks"></div>
+            # vite frontend (Frontend)
+            cd ../Frontend
+            npm install
+            npm run dev
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+            # next frontend (frontend)
+            cd ../frontend
+            npm install
+            npm run dev`}
+                        </code>
+                      </pre>
+                    </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
-}
+                    <section className="card small">
+                      <h2>API Highlights</h2>
+                      <ul>
+                        <li>POST /api/foodInfo/createFoodInfo</li>
+                        <li>GET /api/foodInfo/getFoodInfo</li>
+                        <li>POST /api/users/register</li>
+                        <li>POST /api/users/auth</li>
+                      </ul>
+                    </section>
+                  </main>
 
-export default App
+                  <footer>
+                    <small>© AAHAAR — Contribution by Santoshpatel112</small>
+                  </footer>
+                </div>
+              )
+            }
+
+            export default App
