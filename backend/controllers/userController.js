@@ -1,8 +1,13 @@
 import User from "../models/userModel.js";
 import generateToken from "../utils/token.js";
+<<<<<<< HEAD
 import asyncHandler from "../middlewares/asyncHandler.js";
 
 //authenticate User
+=======
+
+
+>>>>>>> santosh/main
 const authUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
@@ -16,6 +21,7 @@ const authUser = asyncHandler(async (req, res) => {
       surname: user.surname,
       email: user.email,
       age: user.age,
+<<<<<<< HEAD
       city: user.city,
       state: user.state,
       country: user.country,
@@ -23,16 +29,26 @@ const authUser = asyncHandler(async (req, res) => {
       isAdmin: user.isAdmin,
       adharVerificationDocument: user.adharVerificationDocument,
       token: generateToken(res, user._id),
+=======
+      isAdmin: user.isAdmin,
+>>>>>>> santosh/main
     });
   } else {
     res.status(401);
       throw new Error("Invalid email or password");
   }
 });
+<<<<<<< HEAD
 //register User
 
 const registerUser = asyncHandler(async (req, res) => {
   const { firstName, surname, email, password, age,city,state,country} = req.body;
+=======
+
+
+const registerUser = asyncHandler(async (req, res) => {
+  const { firstName, surname, email, password, age } = req.body;
+>>>>>>> santosh/main
 
   const userExists = await User.findOne({ email });
   if (userExists) {
@@ -46,9 +62,12 @@ const registerUser = asyncHandler(async (req, res) => {
     email,
     password,
     age,
+<<<<<<< HEAD
     city,
     state,
     country
+=======
+>>>>>>> santosh/main
   });
 
   if (user) {
@@ -59,12 +78,15 @@ const registerUser = asyncHandler(async (req, res) => {
       surname: user.surname,
       email: user.email,
       age: user.age,
+<<<<<<< HEAD
       city: user.city,
       state: user.state,  
       country: user.country,
       isAdmin: user.isAdmin,
       token: generateToken(res, user._id),
       message: "User registered successfully",
+=======
+>>>>>>> santosh/main
     });
   } else {
     res.status(404);
@@ -72,7 +94,11 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 //logout User
+=======
+
+>>>>>>> santosh/main
 const logoutUser = asyncHandler(async (req, res) => {
   res.cookie("jwt", "", {
     httpOnly: true,
@@ -82,6 +108,7 @@ const logoutUser = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "Logged Out successfully" });
 });
 
+<<<<<<< HEAD
 //adhar verification Document upload
 const uploadAdharDocument = asyncHandler(async (req, res) => {
   const files = req.files;
@@ -104,3 +131,6 @@ const uploadAdharDocument = asyncHandler(async (req, res) => {
 
 
 export { authUser, registerUser, logoutUser, uploadAdharDocument };
+=======
+export { authUser, registerUser, logoutUser };
+>>>>>>> santosh/main
