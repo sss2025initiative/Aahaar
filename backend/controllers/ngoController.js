@@ -1,14 +1,15 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import Ngo from "../models/ngoModel.js";
+import { getFileUrl } from "../s3Config.js";
 
 // @desc    Upload NGO documents
 const uploadNgoDocumentsContrller = asyncHandler(async (req, res) => {
   const files = req.files;
   if (files) {
     const filesUrls = {
-      certificationOfRegistration:files.certificationOfRegistration?.[0]?.location,
-      ownerPanCard: files.ownerPanCard?.[0]?.location,
-      prevousWorkReport: files.prevousWorkReport?.[0]?.location,
+      certificationOfRegistration: getFileUrl(files.certificationOfRegistration?.[0]),
+      ownerPanCard: getFileUrl(files.ownerPanCard?.[0]),
+      prevousWorkReport: getFileUrl(files.prevousWorkReport?.[0]),
     };
     res.status(200).json({
       message: "Files uploaded successfully",
@@ -60,11 +61,11 @@ const ngoDetailsController = asyncHandler(async (req, res) => {
 // @desc    Get NGO details based on city 
 const getNgoDetailsBasedOnCity = asyncHandler(async (req, res) => {
   const { ngoCity } = req.params;
-  const ngoDetails = await Ngo.find({ ngoCity });
+  const ngoDetails = await Ngo.find({ ngoCity, isApproved: true });
   if (ngoDetails.length > 0) {
     return res.status(200).json({ message: "NGO details found", ngoDetails });
   } else {
-    return res.status(400).json({ message: "No NGO details found" });
+    return res.status(200).json({ message: "No NGO details found", ngoDetails: [] });
   }
 }
 )

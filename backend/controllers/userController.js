@@ -1,11 +1,13 @@
 import User from "../models/userModel.js";
 import generateToken from "../utils/token.js";
 import asyncHandler from "../middlewares/asyncHandler.js";
+import { getFileUrl } from "../s3Config.js";
 
 //authenticate User
 const authUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-  const user = await User.findOne({ email });
+  const normalizedEmail = email ? email.trim().toLowerCase() : "";
+  const user = await User.findOne({ email: normalizedEmail });
 
   if (user && (await user.matchPassword(password))) {
     generateToken(res, user._id);
@@ -33,23 +35,35 @@ const authUser = asyncHandler(async (req, res) => {
 //register User
 const registerUser = asyncHandler(async (req, res) => {
   const { firstName, surname, email, password, age,city,state,country} = req.body;
+  const normalizedEmail = email ? email.trim().toLowerCase() : "";
+  console.log("Register API requested with email:", normalizedEmail);
 
-  const userExists = await User.findOne({ email });
+  const userExists = await User.findOne({ email: normalizedEmail });
+  console.log("userExists query result:", userExists);
   if (userExists) {
     res.status(400);
     throw new Error("User already exists");
   }
 
-  const user = await User.create({
-    firstName,
-    surname,
-    email,
-    password,
-    age,
-    city,
-    state,
-    country
-  });
+  console.log("Attempting to create user in MongoDB...");
+  let user;
+  try {
+    user = await User.create({
+      firstName,
+      surname,
+      email: normalizedEmail,
+      password,
+      age,
+      city,
+      state,
+      country
+    });
+    console.log("User created successfully in DB:", user);
+  } catch (err) {
+    console.error("Database save failed during User.create:", err);
+    res.status(500);
+    throw new Error("Database save failed: " + err.message);
+  }
 
   if (user) {
     generateToken(res, user._id);
@@ -87,7 +101,7 @@ const uploadAdharDocument = asyncHandler(async (req, res) => {
   const files = req.files;
   if (files) {
     const filesUrls = {
-      adharVerificationDocument: files.adharVerificationDocument?.[0]?.location,
+      adharVerificationDocument: getFileUrl(files.adharVerificationDocument?.[0]),
     };
     
     // Save the document URL to the user record in database
@@ -109,58 +123,4 @@ const uploadAdharDocument = asyncHandler(async (req, res) => {
 }
 );
 
-// Simulate sending OTP for Aadhaar verification
-const sendAadhaarOtp = asyncHandler(async (req, res) => {
-  const { aadhaarNumber } = req.body;
-  if (!aadhaarNumber || !/^\d{12}$/.test(aadhaarNumber)) {
-    res.status(400);
-    throw new Error("Please enter a valid 12-digit Aadhaar number");
-  }
-  res.status(200).json({
-    success: true,
-    message: "Mock OTP sent to mobile registered with Aadhaar ending in " + aadhaarNumber.slice(-4),
-  });
-});
-
-// Simulate verifying OTP for Aadhaar verification
-const verifyAadhaarOtp = asyncHandler(async (req, res) => {
-  const { aadhaarNumber, otp } = req.body;
-  if (!aadhaarNumber || !/^\d{12}$/.test(aadhaarNumber) || !otp) {
-    res.status(400);
-    throw new Error("Aadhaar number and OTP are required");
-  }
-
-  if (otp !== "123456") {
-    res.status(400);
-    throw new Error("Invalid OTP. For demo purposes, use OTP: 123456");
-  }
-
-  const user = await User.findById(req.user._id);
-  if (!user) {
-    res.status(404);
-    throw new Error("User not found");
-  }
-
-  user.isVerified = true;
-  await user.save();
-
-  res.status(200).json({
-    success: true,
-    message: "Aadhaar verified successfully!",
-    user: {
-      _id: user._id,
-      firstName: user.firstName,
-      surname: user.surname,
-      email: user.email,
-      age: user.age,
-      city: user.city,
-      state: user.state,
-      country: user.country,
-      isVerified: user.isVerified,
-      isAdmin: user.isAdmin,
-      adharVerificationDocument: user.adharVerificationDocument,
-    }
-  });
-});
-
-export { authUser, registerUser, logoutUser, uploadAdharDocument, sendAadhaarOtp, verifyAadhaarOtp };
+export { authUser, registerUser, logoutUser, uploadAdharDocument };

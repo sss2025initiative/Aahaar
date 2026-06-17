@@ -47,7 +47,7 @@ const SECTIONS = [
 ];
 
 export default function NgoRegistration() {
-  const { user, sendAadhaarOTP, verifyAadhaarOTP } = useAuth();
+  const { user } = useAuth();
   const [form, setForm] = useState({
     ngoName: '', ngoEmail: '', ngoPhone: '', ngoAddress: '', ngoCity: '',
     ngoState: '', ngoPurpose: '', ngoWebsite: '', certificationOfRegistration: '',
@@ -56,13 +56,6 @@ export default function NgoRegistration() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-
-  // Aadhaar lock state
-  const [aadhaarNum, setAadhaarNum] = useState('');
-  const [otpVal, setOtpVal] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [otpError, setOtpError] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -163,97 +156,21 @@ export default function NgoRegistration() {
           <div className="glass-card" style={{ maxWidth: 500, width: '100%', padding: '40px 32px', textAlign: 'center', border: '1px solid rgba(234,179,8,0.15)' }}>
             <div style={{ fontSize: '4.5rem', marginBottom: 20, animation: 'float 3s ease-in-out infinite' }}>🛡️</div>
             <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: 12 }}>Aadhaar Verification Required</h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: 28 }}>
-              To verify and establish a secure NGO profile, please complete Aadhaar verification.
-              Once verified, you will immediately unlock the NGO registration form.
-            </p>
-
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              setOtpError('');
-              if (!otpSent) {
-                if (!/^\d{12}$/.test(aadhaarNum)) {
-                  setOtpError('Aadhaar number must be exactly 12 digits');
-                  return;
-                }
-                setOtpLoading(true);
-                const res = await sendAadhaarOTP(aadhaarNum);
-                setOtpLoading(false);
-                if (res.success) {
-                  setOtpSent(true);
-                  showToast(res.message, 'success');
-                } else {
-                  setOtpError(res.error);
-                }
-              } else {
-                if (!otpVal) {
-                  setOtpError('Please enter the OTP code');
-                  return;
-                }
-                setOtpLoading(true);
-                const res = await verifyAadhaarOTP(aadhaarNum, otpVal);
-                setOtpLoading(false);
-                if (res.success) {
-                  showToast('Aadhaar verified successfully! 🎉', 'success');
-                } else {
-                  setOtpError(res.error);
-                }
-              }
-            }}>
-              {!otpSent ? (
-                <div className="form-group" style={{ marginBottom: 16, textAlign: 'left' }}>
-                  <label className="form-label">Aadhaar Number</label>
-                  <input
-                    type="text"
-                    maxLength={12}
-                    className="form-input"
-                    placeholder="1234 5678 9012"
-                    value={aadhaarNum}
-                    onChange={(e) => setAadhaarNum(e.target.value.replace(/\D/g, ''))}
-                    disabled={otpLoading}
-                  />
-                </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, marginBottom: 28 }}>
+              {user.adharVerificationDocument ? (
+                <span>Your Aadhaar card has been uploaded and is currently <strong>pending admin approval</strong>. Once verified, you will be able to register your NGO.</span>
               ) : (
-                <div className="form-group" style={{ marginBottom: 16, textAlign: 'left' }}>
-                  <label className="form-label">Enter OTP Code (use: 123456)</label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    className="form-input"
-                    placeholder="••••••"
-                    value={otpVal}
-                    onChange={(e) => setOtpVal(e.target.value.replace(/\D/g, ''))}
-                    disabled={otpLoading}
-                  />
-                </div>
+                <span>To register an NGO and receive donations, please upload your Aadhaar card on your <strong>Dashboard</strong>. Once approved by our team, this page will unlock.</span>
               )}
-
-              {otpError && (
-                <div style={{ color: 'var(--color-red)', fontSize: '0.82rem', marginBottom: 14, fontWeight: 600 }}>
-                  ⚠️ {otpError}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-                <Link to="/" className="btn-ghost" style={{ flex: 1, justifyContent: 'center' }}>
-                  Cancel
-                </Link>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  style={{ flex: 1, justifyContent: 'center', background: 'linear-gradient(135deg,#06b6d4,#0284c7)' }}
-                  disabled={otpLoading}
-                >
-                  {otpLoading ? (
-                    <><span className="spinner" /> Loading...</>
-                  ) : !otpSent ? (
-                    'Verify Identity'
-                  ) : (
-                    'Confirm OTP'
-                  )}
-                </button>
-              </div>
-            </form>
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <Link to="/" className="btn-ghost" style={{ flex: 1, justifyContent: 'center' }}>
+                Cancel
+              </Link>
+              <Link to="/dashboard" className="btn-primary" style={{ flex: 2, justifyContent: 'center', background: 'linear-gradient(135deg,#06b6d4,#0284c7)' }}>
+                Go to Dashboard →
+              </Link>
+            </div>
           </div>
         </div>
       </div>

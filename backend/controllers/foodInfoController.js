@@ -1,11 +1,11 @@
 import FoodInfo from "../models/foodInfoModel.js";
 import asyncHandler from "express-async-handler";
-import { uploadFoodImages as uploadFoodImagesMiddleware } from "../s3Config.js";
+import { uploadFoodImages as uploadFoodImagesMiddleware, getFileUrl } from "../s3Config.js";
 
 const uploadFoodImages = asyncHandler(async (req, res) => {
     const files = req.files;
     if (files && files.foodImage) {
-      const imageUrls = files.foodImage.map(file => file.location);
+      const imageUrls = files.foodImage.map(file => getFileUrl(file));
       res.status(200).json({
         message: "Food images uploaded successfully",
         imageUrls,

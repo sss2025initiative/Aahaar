@@ -51,7 +51,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const uploadAadhaar = useCallback(async (file) => {
+  const uploadAadhaar = useCallback(async (file, currentUser = null) => {
     setLoading(true);
     try {
       const formData = new FormData();
@@ -63,7 +63,8 @@ export function AuthProvider({ children }) {
       });
       const newDocUrl = res.data?.filesUrls?.adharVerificationDocument;
       if (newDocUrl) {
-        const updatedUser = { ...user, adharVerificationDocument: newDocUrl };
+        const activeUser = currentUser || user;
+        const updatedUser = { ...activeUser, adharVerificationDocument: newDocUrl };
         setUser(updatedUser);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
         return { success: true, user: updatedUser };
@@ -77,38 +78,6 @@ export function AuthProvider({ children }) {
     }
   }, [user]);
 
-  const sendAadhaarOTP = useCallback(async (aadhaarNumber) => {
-    setLoading(true);
-    try {
-      const res = await api.post('/aahar/users/aadhaar-send-otp', { aadhaarNumber });
-      return { success: true, message: res.data?.message || 'OTP sent successfully!' };
-    } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to send OTP. Please try again.';
-      return { success: false, error: msg };
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const verifyAadhaarOTP = useCallback(async (aadhaarNumber, otp) => {
-    setLoading(true);
-    try {
-      const res = await api.post('/aahar/users/aadhaar-verify-otp', { aadhaarNumber, otp });
-      if (res.data?.success) {
-        const updatedUser = res.data.user;
-        setUser(updatedUser);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
-        return { success: true, user: updatedUser };
-      }
-      return { success: false, error: res.data?.message || 'Verification failed.' };
-    } catch (err) {
-      const msg = err.response?.data?.message || 'Verification failed. Please try again.';
-      return { success: false, error: msg };
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   const logout = useCallback(async () => {
     try {
       await api.post('/aahar/users/logout');
@@ -121,7 +90,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, loading, login, register, uploadAadhaar, sendAadhaarOTP, verifyAadhaarOTP, logout }}>
+    <AuthContext.Provider value={{ user, isAdmin, loading, login, register, uploadAadhaar, logout }}>
       {children}
     </AuthContext.Provider>
   );

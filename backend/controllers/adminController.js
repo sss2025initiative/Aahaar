@@ -88,7 +88,7 @@ const makeUserAdmin = asyncHandler(async (req, res) => {
 // @desc    Get food info by city
 const getFoodInfoByCity=asyncHandler(async(req ,res)=>{
     const city = req.user.city;
-    const foodInfo=await FoodInfo.find({ "contactDetails.city": city });
+    const foodInfo=await FoodInfo.find({ "contactDetails.city": city }).sort({ createdAt: -1 });
     return res.status(200).json({
         foodInfo,
         message: "Food info fetched successfully"

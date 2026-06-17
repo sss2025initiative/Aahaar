@@ -47,12 +47,202 @@ function RejectModal({ onConfirm, onCancel }) {
   );
 }
 
+function ReviewDetailsModal({ donation, onApprove, onReject, onClose }) {
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 650, width: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
+        <h3 className="modal__title" style={{ fontSize: '1.25rem', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          🔍 Donation Review Details
+        </h3>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Header ID */}
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+            <strong>Donation ID:</strong> {donation._id}
+          </div>
+
+          {/* Pickup and Contact Info */}
+          <div>
+            <h4 style={{ fontSize: '0.9rem', color: 'var(--color-orange)', marginBottom: 8, fontWeight: 700 }}>📞 Pickup & Contact Info</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: '0.85rem' }}>
+              <div><span style={{ color: 'var(--text-secondary)' }}>Contact Person:</span> <strong style={{ color: 'var(--text-primary)' }}>{donation.contactPersonName || donation.contactDetails?.contactPersonName || '—'}</strong></div>
+              <div><span style={{ color: 'var(--text-secondary)' }}>Phone Number:</span> <strong style={{ color: 'var(--text-primary)' }}>{donation.phoneNumber || donation.contactDetails?.phoneNumber || '—'}</strong></div>
+              <div><span style={{ color: 'var(--text-secondary)' }}>Email Address:</span> <strong style={{ color: 'var(--text-primary)' }}>{donation.email || donation.contactDetails?.email || '—'}</strong></div>
+              <div><span style={{ color: 'var(--text-secondary)' }}>City:</span> <strong style={{ color: 'var(--text-primary)' }}>{donation.city || donation.contactDetails?.city || '—'}</strong></div>
+              <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--text-secondary)' }}>Pickup Address:</span> <strong style={{ color: 'var(--text-primary)' }}>{donation.fullAddress || donation.contactDetails?.fullAddress || '—'}</strong></div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>NGO Preference:</span> <strong style={{ color: 'var(--text-primary)' }}>{donation.ngoPreference === 'random' ? 'Directly Donate (Auto-assign)' : (donation.ngoPreference?.ngoName || donation.ngoPreference || 'Auto-assign')}</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Food Items List */}
+          <div>
+            <h4 style={{ fontSize: '0.9rem', color: 'var(--color-orange)', marginBottom: 8, fontWeight: 700 }}>🍱 Food Items ({(donation.foodItemDetails || []).length})</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {(donation.foodItemDetails || []).map((item, idx) => (
+                <div key={idx} style={{ padding: 14, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', gap: 14, alignItems: 'center' }}>
+                  {item.imageUrl && item.imageUrl.length > 0 && (
+                    <img 
+                      src={item.imageUrl[0]} 
+                      alt={item.foodName} 
+                      style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--border-color)', flexShrink: 0 }} 
+                    />
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{item.foodName}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                      Category: {item.category} · Expiry: {new Date(item.expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+                    {item.packaging && (
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                        Packaging: {item.packaging}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ fontWeight: 800, color: 'var(--color-orange)', fontSize: '1rem' }}>
+                    {item.quantity} {item.quantityType}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="modal__actions" style={{ marginTop: 24, borderTop: '1px solid var(--border-color)', paddingTop: 16 }}>
+          <button className="btn-ghost" onClick={onClose}>Close</button>
+          {donation.status === 'pending' && (
+            <>
+              <button className="btn-danger" onClick={onReject}>Reject</button>
+              <button className="btn-primary" onClick={onApprove} style={{ background: 'var(--grad-green)' }}>Approve</button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ActionBtn({ label, icon, onClick, variant = 'ghost', disabled }) {
   const cls = { ghost: 'btn-ghost', teal: 'btn-teal', danger: 'btn-danger', primary: 'btn-primary' }[variant];
   return (
     <button className={cls} style={{ fontSize: '0.75rem', padding: '5px 12px', whiteSpace: 'nowrap' }} onClick={onClick} disabled={disabled}>
       {icon} {label}
     </button>
+  );
+}
+
+function TrendChart({ data, type }) {
+  let formatted;
+  if (type === 'weekly') {
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    formatted = dayNames.map((name, index) => {
+      const dbDay = index + 1;
+      const found = data?.find(d => d._id === dbDay);
+      return {
+        label: name,
+        quantity: found ? found.quantity : 0,
+        count: found ? found.count : 0
+      };
+    });
+  } else if (type === 'monthly') {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    formatted = monthNames.map((name, index) => {
+      const dbMonth = index + 1;
+      const found = data?.find(d => d._id === dbMonth);
+      return {
+        label: name,
+        quantity: found ? found.quantity : 0,
+        count: found ? found.count : 0
+      };
+    });
+  } else {
+    const currentYear = new Date().getFullYear();
+    const years = Array.from({ length: 5 }, (_, i) => currentYear - 4 + i);
+    formatted = years.map(yr => {
+      const found = data?.find(d => d._id === yr);
+      return {
+        label: String(yr),
+        quantity: found ? found.quantity : 0,
+        count: found ? found.count : 0
+      };
+    });
+  }
+
+  const maxVal = Math.max(...formatted.map(f => f.quantity), 10);
+
+  return (
+    <div style={{ padding: '20px 0' }}>
+      <div style={{ height: 200, width: '100%', display: 'flex', alignItems: 'flex-end', gap: 12, paddingBottom: 8, borderBottom: '1px solid var(--border-color)', position: 'relative' }}>
+        {[0.25, 0.5, 0.75, 1].map((ratio, i) => (
+          <div key={i} style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: `${ratio * 100}%`,
+            borderTop: '1px dashed rgba(255,255,255,0.05)',
+            pointerEvents: 'none'
+          }} />
+        ))}
+
+        {formatted.map((point, index) => {
+          const heightPct = (point.quantity / maxVal) * 100;
+          return (
+            <div key={index} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', position: 'relative' }}>
+              <div className="chart-tooltip" style={{
+                position: 'absolute',
+                bottom: `${heightPct + 6}%`,
+                background: 'var(--bg-card)',
+                border: '1px solid var(--color-orange)',
+                borderRadius: 4,
+                padding: '4px 8px',
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                color: '#fff',
+                opacity: 0,
+                pointerEvents: 'none',
+                transition: 'opacity 0.2s ease',
+                whiteSpace: 'nowrap',
+                zIndex: 10,
+                boxShadow: 'var(--shadow-sm)'
+              }}>
+                {point.quantity} kg ({point.count} donations)
+              </div>
+              
+              <div style={{
+                width: '70%',
+                maxWidth: 40,
+                height: `${heightPct}%`,
+                background: 'var(--grad-primary)',
+                borderRadius: '4px 4px 0 0',
+                transition: 'height 0.8s ease',
+                cursor: 'pointer',
+                boxShadow: '0 0 10px rgba(249,115,22,0.1)'
+              }} 
+              onMouseEnter={e => {
+                const tooltip = e.currentTarget.previousSibling;
+                if (tooltip) tooltip.style.opacity = '1';
+                e.currentTarget.style.filter = 'brightness(1.2)';
+              }}
+              onMouseLeave={e => {
+                const tooltip = e.currentTarget.previousSibling;
+                if (tooltip) tooltip.style.opacity = '0';
+                e.currentTarget.style.filter = 'none';
+              }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      
+      <div style={{ display: 'flex', width: '100%', gap: 12, marginTop: 8 }}>
+        {formatted.map((point, index) => (
+          <div key={index} style={{ flex: 1, textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+            {point.label}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -66,8 +256,10 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [rejectModal, setRejectModal] = useState(null);
-  const [donationFilter, setDonationFilter] = useState('all');
+  const [reviewDonation, setReviewDonation] = useState(null);
+  const [donationFilter, setDonationFilter] = useState('pending');
   const [userSearch, setUserSearch] = useState('');
+  const [trendPeriod, setTrendPeriod] = useState('weekly');
 
   const fetchStats = useCallback(async () => {
     try {
@@ -114,16 +306,16 @@ export default function AdminDashboard() {
       await Promise.resolve();
       if (!active) return;
 
-      if (tab === 'overview') fetchStats();
-      else if (tab === 'users') fetchUsers();
-      else if (tab === 'donations') fetchDonations();
-      else if (tab === 'ngos') fetchNgos();
+      fetchStats();
+      fetchUsers();
+      fetchDonations();
+      fetchNgos();
     };
     loadData();
     return () => {
       active = false;
     };
-  }, [tab, fetchStats, fetchUsers, fetchDonations, fetchNgos]);
+  }, [fetchStats, fetchUsers, fetchDonations, fetchNgos]);
 
   // User actions
   const makeAdmin = async (id) => { try { await api.put(`/aahar/admin/users/${id}/make-admin`); showToast('User promoted to Admin', 'success'); fetchUsers(); } catch { showToast('Failed', 'error'); } };
@@ -134,7 +326,6 @@ export default function AdminDashboard() {
 
   // Donation actions
   const approveDonation = async (id) => { try { await api.put(`/aahar/admin/food-donations/${id}/approve`); showToast('Donation approved ✅', 'success'); fetchDonations(); } catch { showToast('Failed', 'error'); } };
-  const approveInReview = async (id) => { try { await api.put(`/aahar/admin/food-donations/${id}/approve-inreview`); showToast('Marked In Review', 'success'); fetchDonations(); } catch { showToast('Failed', 'error'); } };
   const rejectDonation = async (id, reason) => { try { await api.put(`/aahar/admin/food-donations/${id}/reject`, { rejectionReason: reason }); showToast('Donation rejected', 'success'); setRejectModal(null); fetchDonations(); } catch { showToast('Failed', 'error'); } };
 
   // NGO actions
@@ -223,48 +414,133 @@ export default function AdminDashboard() {
 
         {/* ─── OVERVIEW ─── */}
         {tab === 'overview' && (
-          <div style={{ animation: 'fadeInUp 0.3s ease' }}>
-            <div className="dashboard-stats" style={{ marginBottom: 28 }}>
+          <div style={{ animation: 'fadeInUp 0.3s ease', display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div className="dashboard-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
               {overviewStats.map((s, i) => (
-                <div key={i} className="dash-stat-card">
-                  <div className="dash-stat-card__icon" style={{ background: s.grad }}>{s.icon}</div>
+                <div key={i} className="dash-stat-card" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 18, background: 'var(--glass-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
+                  <div className="dash-stat-card__icon" style={{ background: s.grad, width: 44, height: 44, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>{s.icon}</div>
                   <div>
-                    <div className="dash-stat-card__value" style={{ background: s.grad, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                      {s.value?.toLocaleString() ?? '—'}
+                    <div className="dash-stat-card__value" style={{ fontSize: '1.4rem', fontWeight: 800 }}>
+                      {s.value?.toLocaleString() ?? '0'}
                     </div>
-                    <div className="dash-stat-card__label">{s.label}</div>
+                    <div className="dash-stat-card__label" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.label}</div>
                   </div>
                 </div>
               ))}
             </div>
 
             {/* Quick Actions */}
-            <div className="admin-overview-cards">
+            <div className="admin-overview-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
               {TABS.filter(t => t.id !== 'overview').map(t => (
-                <div key={t.id} className="admin-quick-card" onClick={() => setTab(t.id)}>
+                <div key={t.id} className="admin-quick-card" onClick={() => setTab(t.id)} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'var(--glass-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', cursor: 'pointer', transition: 'all 0.25s ease' }}>
                   <span style={{ fontSize: '2rem' }}>{t.icon}</span>
                   <div>
-                    <div style={{ fontWeight: 700 }}>Manage {t.label}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 2 }}>Click to view →</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Manage {t.label}</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>Click to view details →</div>
                   </div>
                 </div>
               ))}
             </div>
 
-            {stats && (
-              <div style={{ marginTop: 24, padding: '20px 24px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.15)', borderRadius: 'var(--radius-lg)' }}>
-                <div style={{ fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span>📈</span> Platform Health
+            {/* Charts Section */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 24 }}>
+              {/* Activity Trend */}
+              <div className="glass-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ fontWeight: 800, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    📈 Donation Activity Trend
+                  </div>
+                  {/* Period Toggle */}
+                  <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', padding: 3, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                    {['weekly', 'monthly', 'yearly'].map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setTrendPeriod(t)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: 6,
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          background: trendPeriod === t ? 'var(--grad-primary)' : 'transparent',
+                          color: trendPeriod === t ? '#fff' : 'var(--text-secondary)',
+                          transition: 'all var(--transition-fast)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {t.charAt(0).toUpperCase() + t.slice(1)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+
+                {stats?.stats?.donations ? (
+                  <TrendChart
+                    data={
+                      trendPeriod === 'weekly'
+                        ? stats.stats.donations.weekly
+                        : trendPeriod === 'monthly'
+                          ? stats.stats.donations.monthly
+                          : stats.stats.donations.yearly
+                    }
+                    type={trendPeriod}
+                  />
+                ) : (
+                  <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                    Loading trend metrics...
+                  </div>
+                )}
+              </div>
+
+              {/* Food-wise Breakdown */}
+              <div className="glass-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ fontWeight: 800, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  🍱 Food-Wise Distribution
+                </div>
+
+                {stats?.stats?.donor?.totalQtyByCategory?.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', maxHeight: 220, paddingRight: 4 }}>
+                    {stats.stats.donor.totalQtyByCategory.map((cat, idx) => {
+                      const maxQty = Math.max(...stats.stats.donor.totalQtyByCategory.map(c => c.totalQty || 1), 1);
+                      const percentage = (cat.totalQty / maxQty) * 100;
+                      return (
+                        <div key={idx}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 700, marginBottom: 5 }}>
+                            <span>{cat._id}</span>
+                            <span style={{ color: 'var(--color-orange)' }}>{cat.totalQty} kg</span>
+                          </div>
+                          <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 99, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${percentage}%`, background: 'var(--grad-primary)', borderRadius: 99, transition: 'width 1.2s ease' }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    No food-wise metrics recorded yet.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Platform metrics & Health */}
+            {stats && (
+              <div style={{ padding: '20px 24px', background: 'rgba(249,115,22,0.04)', border: '1px solid rgba(249,115,22,0.12)', borderRadius: 'var(--radius-lg)' }}>
+                <div style={{ fontWeight: 800, fontSize: '1rem', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  🛡️ Platform Safety & Health Indicators
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
                   {[
-                    { label: 'Approved Rate', val: stats.totalDonations ? `${Math.round(((stats.approvedDonations || 0) / stats.totalDonations) * 100)}%` : '—', color: 'var(--color-green)' },
-                    { label: 'Pending', val: stats.pendingDonations ?? '—', color: 'var(--color-yellow)' },
-                    { label: 'Cities Active', val: stats.citiesCount ?? '—', color: 'var(--color-teal)' },
+                    { label: 'Donation Approval Rate', val: stats.totalDonations ? `${Math.round(((stats.approvedDonations || 0) / stats.totalDonations) * 100)}%` : '0%', color: 'var(--color-green)', icon: '🟢' },
+                    { label: 'Pending Verification', val: stats.pendingDonations ?? '0', color: 'var(--color-yellow)', icon: '⏳' },
+                    { label: 'Active Cities', val: stats.citiesCount ?? '0', color: 'var(--color-teal)', icon: '🏙️' },
+                    { label: 'Avg Approval Time', val: stats.stats?.approvalMetrics?.donor?.averageApprovalTimeHours ? `${stats.stats.approvalMetrics.donor.averageApprovalTimeHours.toFixed(1)} hrs` : 'Immediate', color: 'var(--color-purple)', icon: '⚡' },
                   ].map(item => (
-                    <div key={item.label} style={{ textAlign: 'center', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: item.color }}>{item.val}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>{item.label}</div>
+                    <div key={item.label} style={{ textAlign: 'center', padding: '14px 10px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 800, color: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <span>{item.icon}</span> {item.val}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 4 }}>{item.label}</div>
                     </div>
                   ))}
                 </div>
@@ -343,7 +619,12 @@ export default function AdminDashboard() {
                         <td><StatusBadge status={d.adminInReview ? 'inreview' : d.status} /></td>
                         <td>
                           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                            <ActionBtn icon="🔍" label="Review" onClick={() => approveInReview(d._id)} />
+                            <ActionBtn icon="🔍" label="Review" onClick={() => {
+                              setReviewDonation(d);
+                              if (!d.adminInReview) {
+                                api.put(`/aahar/admin/food-donations/${d._id}/approve-inreview`).then(() => fetchDonations()).catch(() => {});
+                              }
+                            }} />
                             <ActionBtn icon="✅" label="Approve" onClick={() => approveDonation(d._id)} variant="teal" />
                             <ActionBtn icon="✕" label="Reject" onClick={() => setRejectModal(d._id)} variant="danger" />
                           </div>
@@ -505,6 +786,22 @@ export default function AdminDashboard() {
         <RejectModal
           onConfirm={(reason) => rejectDonation(rejectModal, reason)}
           onCancel={() => setRejectModal(null)}
+        />
+      )}
+
+      {/* Review Details Modal */}
+      {reviewDonation && (
+        <ReviewDetailsModal
+          donation={reviewDonation}
+          onApprove={() => {
+            approveDonation(reviewDonation._id);
+            setReviewDonation(null);
+          }}
+          onReject={() => {
+            setRejectModal(reviewDonation._id);
+            setReviewDonation(null);
+          }}
+          onClose={() => setReviewDonation(null)}
         />
       )}
     </div>
