@@ -46,7 +46,12 @@ const ngoSchema = mongoose.Schema({
             type: String,
             required: true,
         },
-
+    },
+    // Links this NGO to the user account that registered it
+    registeredBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: false,
     },
     isApproved: {
         type: Boolean,
@@ -58,4 +63,4 @@ const ngoSchema = mongoose.Schema({
 
 
 const Ngo = mongoose.model("Ngo", ngoSchema)
-export default Ngo;
+export default Ngo;

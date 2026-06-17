@@ -931,11 +931,43 @@ export default function AdminDashboard() {
                             🔗 {ngo.ngoWebsite}
                           </a>
                         )}
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 6 }}>
-                          <div><strong>Reg No:</strong> {ngo.ngoDocuments?.certificationOfRegistration || '—'}</div>
-                          <div><strong>PAN Card:</strong> {ngo.ngoDocuments?.ownerPanCard || '—'}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 8 }}>
+                          {/* Registration Certificate */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <strong>Registration Cert:</strong>
+                            {ngo.ngoDocuments?.certificationOfRegistration ? (
+                              ngo.ngoDocuments.certificationOfRegistration.startsWith('http') ? (
+                                <a href={ngo.ngoDocuments.certificationOfRegistration} target="_blank" rel="noreferrer"
+                                  style={{ color: 'var(--color-teal)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  📎 View Document
+                                </a>
+                              ) : (
+                                <span>{ngo.ngoDocuments.certificationOfRegistration}</span>
+                              )
+                            ) : <span style={{ color: 'var(--color-red)' }}>Not uploaded</span>}
+                          </div>
+                          {/* PAN Card */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <strong>PAN Card:</strong>
+                            {ngo.ngoDocuments?.ownerPanCard ? (
+                              ngo.ngoDocuments.ownerPanCard.startsWith('http') ? (
+                                <a href={ngo.ngoDocuments.ownerPanCard} target="_blank" rel="noreferrer"
+                                  style={{ color: 'var(--color-teal)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  📎 View Document
+                                </a>
+                              ) : (
+                                <span>{ngo.ngoDocuments.ownerPanCard}</span>
+                              )
+                            ) : <span style={{ color: 'var(--color-red)' }}>Not uploaded</span>}
+                          </div>
                           {ngo.ngoDocuments?.prevousWorkReport && (
-                            <div style={{ whiteSpace: 'pre-wrap' }}><strong>Previous Work:</strong> {ngo.ngoDocuments?.prevousWorkReport}</div>
+                            <div style={{ whiteSpace: 'pre-wrap' }}><strong>Previous Work:</strong> {ngo.ngoDocuments.prevousWorkReport}</div>
+                          )}
+                          {/* Registered by */}
+                          {ngo.registeredBy && (
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: 2 }}>
+                              👤 Registered by: {ngo.registeredBy.firstName} {ngo.registeredBy.surname} ({ngo.registeredBy.email})
+                            </div>
                           )}
                         </div>
                       </div>

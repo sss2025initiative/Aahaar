@@ -2,29 +2,31 @@ import asyncHandler from "../middlewares/asyncHandler.js";
 import NgoFoodRequest from "../models/ngoFoodRequestModel.js";
 import Ngo from "../models/ngoModel.js";
 
+// Helper: find the NGO registered by the current user (tries registeredBy first, falls back to email)
+const findUserNgo = async (req, requireApproved = false) => {
+  const query = requireApproved
+    ? { registeredBy: req.user._id, isApproved: true }
+    : { registeredBy: req.user._id };
+
+  let ngo = await Ngo.findOne(query);
+
+  // Fallback for older records that don't have registeredBy set
+  if (!ngo) {
+    const fallbackQuery = requireApproved
+      ? { ngoEmail: req.user.email, isApproved: true }
+      : { ngoEmail: req.user.email };
+    ngo = await Ngo.findOne(fallbackQuery);
+  }
+  return ngo;
+};
+
 // @desc    Create a food request (NGO only, must be approved)
 // @route   POST /aahar/ngo-food-requests/create
 // @access  Private
 const createNgoFoodRequest = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
-  // Find an approved NGO registered by this user's email
-  const { ngoEmail } = req.body;
-  
-  // Find NGO - either by provided email or look up from the user-associated NGO
-  let ngo = null;
-  if (ngoEmail) {
-    ngo = await Ngo.findOne({ ngoEmail, isApproved: true });
-  }
-  
-  if (!ngo) {
-    // Try to find any approved NGO in the city matching the user
-    ngo = await Ngo.findOne({ 
-      ngoCity: req.user.city, 
-      isApproved: true,
-      ngoEmail: req.user.email 
-    });
-  }
+  const ngo = await findUserNgo(req, true); // requireApproved = true
 
   if (!ngo) {
     res.status(403);
@@ -93,10 +95,7 @@ const createNgoFoodRequest = asyncHandler(async (req, res) => {
 // @route   GET /aahar/ngo-food-requests/my-requests
 // @access  Private
 const getMyNgoFoodRequests = asyncHandler(async (req, res) => {
-  // Find the NGO associated with this user
-  const ngo = await Ngo.findOne({ 
-    ngoEmail: req.user.email 
-  });
+  const ngo = await findUserNgo(req, false); // any status (pending approval or approved)
 
   if (!ngo) {
     return res.status(200).json({
@@ -122,6 +121,7 @@ const getMyNgoFoodRequests = asyncHandler(async (req, res) => {
       ngoPhone: ngo.ngoPhone,
       ngoPurpose: ngo.ngoPurpose,
       ngoWebsite: ngo.ngoWebsite,
+      ngoDocuments: ngo.ngoDocuments,
       isApproved: ngo.isApproved,
     },
     message: "Requests fetched successfully",
@@ -132,8 +132,8 @@ const getMyNgoFoodRequests = asyncHandler(async (req, res) => {
 // @route   GET /aahar/ngo-food-requests/ngo-status
 // @access  Private
 const getNgoStatus = asyncHandler(async (req, res) => {
-  const ngo = await Ngo.findOne({ ngoEmail: req.user.email });
-  
+  const ngo = await findUserNgo(req, false);
+
   if (!ngo) {
     return res.status(200).json({ ngo: null, message: "No NGO found" });
   }
@@ -148,6 +148,7 @@ const getNgoStatus = asyncHandler(async (req, res) => {
       ngoPhone: ngo.ngoPhone,
       ngoPurpose: ngo.ngoPurpose,
       ngoWebsite: ngo.ngoWebsite,
+      ngoDocuments: ngo.ngoDocuments,
       isApproved: ngo.isApproved,
       createdAt: ngo.createdAt,
     },

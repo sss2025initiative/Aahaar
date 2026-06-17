@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import { showToast } from '../components/Toast';
-import StatusBadge from '../components/StatusBadge';
 
 const FOOD_CATEGORIES = [
   'Fruits', 'Vegetables', 'Bakery', 'Dairy', 'Cooked Meals',

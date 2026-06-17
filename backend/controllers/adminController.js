@@ -4,10 +4,17 @@ import FoodInfo from "../models/foodInfoModel.js";
 import Ngo from "../models/ngoModel.js";
 import NgoFoodRequest from "../models/ngoFoodRequestModel.js";
 
-//get Ngos based on their cities
+//get Ngos based on their cities (case-insensitive, show all if admin has no city)
 const getNgoBasedOnCity = asyncHandler(async(req, res) => {
     const userCity = req.user.city;
-    const ngos = await Ngo.find({ ngoCity: userCity });
+    let ngos;
+    if (userCity) {
+        ngos = await Ngo.find({ ngoCity: { $regex: new RegExp(`^${userCity}$`, 'i') } })
+            .populate('registeredBy', 'firstName surname email');
+    } else {
+        // Admin has no city set — show all NGOs
+        ngos = await Ngo.find({}).populate('registeredBy', 'firstName surname email');
+    }
     res.status(200).json(ngos);
 })
 
@@ -315,17 +322,24 @@ const completeFoodDonation = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Get all NGO food requests (admin — by city)
+// @desc    Get all NGO food requests (admin — case-insensitive city, show all if no city)
 // @route   GET /api/admin/ngo-food-requests
 // @access  Private/Admin
 const getAllNgoFoodRequests = asyncHandler(async (req, res) => {
   const adminCity = req.user.city;
-  // Find NGOs in admin's city
-  const cityNgos = await Ngo.find({ ngoCity: adminCity });
-  const ngoIds = cityNgos.map(n => n._id);
+  let ngoIds;
+  if (adminCity) {
+    // Case-insensitive city match
+    const cityNgos = await Ngo.find({ ngoCity: { $regex: new RegExp(`^${adminCity}$`, 'i') } });
+    ngoIds = cityNgos.map(n => n._id);
+  } else {
+    // Admin has no city — return all
+    const allNgos = await Ngo.find({});
+    ngoIds = allNgos.map(n => n._id);
+  }
   const requests = await NgoFoodRequest.find({ ngoId: { $in: ngoIds } })
     .sort({ createdAt: -1 })
-    .populate('ngoId', 'ngoName ngoEmail ngoCity ngoState ngoPhone isApproved')
+    .populate('ngoId', 'ngoName ngoEmail ngoCity ngoState ngoPhone isApproved registeredBy')
     .populate('requestedBy', 'firstName surname email')
     .populate('approvedBy', 'firstName surname')
     .populate('rejectedBy', 'firstName surname');

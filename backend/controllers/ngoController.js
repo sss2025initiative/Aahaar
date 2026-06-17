@@ -35,6 +35,13 @@ const ngoDetailsController = asyncHandler(async (req, res) => {
   if (alreadyRegisteredNgo.length > 0) {
     return res.status(400).json({ message: "NGO already registered" });
   }
+
+  // Also check if this user already has an NGO registered
+  const userAlreadyHasNgo = await Ngo.findOne({ registeredBy: req.user._id });
+  if (userAlreadyHasNgo) {
+    return res.status(400).json({ message: "You have already registered an NGO. Please check your NGO Portal." });
+  }
+
   const registeredNgoDetails = await Ngo.create({
     ngoName,
     ngoEmail,
@@ -49,6 +56,7 @@ const ngoDetailsController = asyncHandler(async (req, res) => {
       ownerPanCard,
       prevousWorkReport,
     },
+    registeredBy: req.user._id,
   });
   if( registeredNgoDetails ){
     return res.status(200).json({ message: "NGO registered successfully", ngoDetails: registeredNgoDetails });
