@@ -10,6 +10,7 @@ const TABS = [
   { id: 'donations', icon: '🍱', label: 'Donations' },
   { id: 'users', icon: '👥', label: 'Users' },
   { id: 'ngos', icon: '🏢', label: 'NGOs' },
+  { id: 'ngo-requests', icon: '📋', label: 'NGO Requests' },
 ];
 
 function SkeletonRow({ cols = 5 }) {
@@ -380,11 +381,14 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [donations, setDonations] = useState([]);
   const [ngos, setNgos] = useState([]);
+  const [ngoRequests, setNgoRequests] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [rejectModal, setRejectModal] = useState(null);
+  const [ngoRejectModal, setNgoRejectModal] = useState(null);
   const [reviewDonation, setReviewDonation] = useState(null);
   const [donationFilter, setDonationFilter] = useState('pending');
+  const [ngoRequestFilter, setNgoRequestFilter] = useState('pending');
   const [userSearch, setUserSearch] = useState('');
   const [trendPeriod, setTrendPeriod] = useState('weekly');
 
@@ -426,6 +430,15 @@ export default function AdminDashboard() {
     finally { setLoading(false); }
   }, []);
 
+  const fetchNgoRequests = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/aahar/admin/ngo-food-requests');
+      setNgoRequests(res.data?.requests || []);
+    } catch { showToast('Failed to load NGO requests', 'error'); }
+    finally { setLoading(false); }
+  }, []);
+
   useEffect(() => {
     let active = true;
     const loadData = async () => {
@@ -437,12 +450,13 @@ export default function AdminDashboard() {
       fetchUsers();
       fetchDonations();
       fetchNgos();
+      fetchNgoRequests();
     };
     loadData();
     return () => {
       active = false;
     };
-  }, [fetchStats, fetchUsers, fetchDonations, fetchNgos]);
+  }, [fetchStats, fetchUsers, fetchDonations, fetchNgos, fetchNgoRequests]);
 
   // User actions
   const makeAdmin = async (id) => { try { await api.put(`/aahar/admin/users/${id}/make-admin`); showToast('User promoted to Admin', 'success'); fetchUsers(); } catch { showToast('Failed', 'error'); } };
@@ -459,10 +473,30 @@ export default function AdminDashboard() {
   // NGO actions
   const approveNgo = async (id) => { try { await api.put(`/aahar/admin/approve-ngo/${id}`); showToast('NGO approved ✅', 'success'); fetchNgos(); } catch { showToast('Failed', 'error'); } };
 
+  // NGO food request actions
+  const approveNgoRequest = async (id) => { try { await api.put(`/aahar/admin/ngo-food-requests/${id}/approve`); showToast('NGO request approved ✅', 'success'); fetchNgoRequests(); } catch { showToast('Failed', 'error'); } };
+  const rejectNgoRequest = async (id, reason) => { try { await api.put(`/aahar/admin/ngo-food-requests/${id}/reject`, { rejectionReason: reason }); showToast('NGO request rejected', 'success'); setNgoRejectModal(null); fetchNgoRequests(); } catch { showToast('Failed', 'error'); } };
+  const fulfillNgoRequest = async (id) => { try { await api.put(`/aahar/admin/ngo-food-requests/${id}/fulfill`); showToast('NGO request marked as Fulfilled 🚚', 'success'); fetchNgoRequests(); } catch { showToast('Failed to fulfill', 'error'); } };
+
   const handleLogout = async () => { await logout(); showToast('Logged out', 'success'); navigate('/'); };
 
   const filteredDonations = donationFilter === 'all' ? donations : donations.filter(d => d.status === donationFilter);
   const filteredUsers = userSearch ? users.filter(u => `${u.firstName} ${u.surname} ${u.email}`.toLowerCase().includes(userSearch.toLowerCase())) : users;
+  const filteredNgoRequests = ngoRequestFilter === 'all' ? ngoRequests : ngoRequests.filter(r => r.status === ngoRequestFilter);
+
+  const URGENCY_MAP = {
+    low: { bg: 'rgba(6,182,212,0.12)', color: 'var(--color-teal)', label: 'Low' },
+    medium: { bg: 'rgba(234,179,8,0.12)', color: 'var(--color-yellow)', label: 'Medium' },
+    high: { bg: 'rgba(249,115,22,0.12)', color: 'var(--color-orange)', label: 'High' },
+    critical: { bg: 'rgba(239,68,68,0.12)', color: 'var(--color-red)', label: 'Critical' },
+  };
+
+  const NGO_REQ_STATUS_MAP = {
+    pending: { bg: 'rgba(234,179,8,0.15)', color: '#fbbf24', icon: '⏳', label: 'Pending' },
+    approved: { bg: 'rgba(34,197,94,0.15)', color: '#4ade80', icon: '✅', label: 'Approved' },
+    rejected: { bg: 'rgba(239,68,68,0.15)', color: '#f87171', icon: '❌', label: 'Rejected' },
+    fulfilled: { bg: 'rgba(139,92,246,0.15)', color: '#a78bfa', icon: '🚚', label: 'Fulfilled' },
+  };
 
   const overviewStats = [
     { label: 'Total Donations', value: stats?.totalDonations, icon: '📦', grad: 'var(--grad-primary)' },
@@ -488,6 +522,11 @@ export default function AdminDashboard() {
               {t.id === 'users' && users.length > 0 && tab !== 'users' && (
                 <span style={{ marginLeft: 'auto', background: 'rgba(6,182,212,0.15)', color: 'var(--color-teal)', fontSize: '0.72rem', fontWeight: 700, padding: '1px 7px', borderRadius: 99 }}>
                   {users.length}
+                </span>
+              )}
+              {t.id === 'ngo-requests' && ngoRequests.filter(r => r.status === 'pending').length > 0 && tab !== 'ngo-requests' && (
+                <span style={{ marginLeft: 'auto', background: 'rgba(249,115,22,0.15)', color: 'var(--color-orange)', fontSize: '0.72rem', fontWeight: 700, padding: '1px 7px', borderRadius: 99 }}>
+                  {ngoRequests.filter(r => r.status === 'pending').length}
                 </span>
               )}
             </button>
@@ -534,6 +573,7 @@ export default function AdminDashboard() {
                 donations: 'Review, approve, and manage all food donation submissions',
                 users: 'Manage user accounts, roles, and verification status',
                 ngos: 'Review and approve NGO registrations in your city',
+                'ngo-requests': 'Review and fulfill food requests from approved NGOs',
               }[tab]}
             </p>
           </div>
@@ -914,13 +954,146 @@ export default function AdminDashboard() {
             )}
           </div>
         )}
+
+        {/* ─── NGO REQUESTS ─── */}
+        {tab === 'ngo-requests' && (
+          <div style={{ animation: 'fadeInUp 0.3s ease' }}>
+            {/* Filter bar */}
+            <div className="filter-bar" style={{ marginBottom: 20 }}>
+              {['all', 'pending', 'approved', 'rejected', 'fulfilled'].map(f => (
+                <button key={f} className={`filter-btn ${ngoRequestFilter === f ? 'filter-btn--active' : ''}`} onClick={() => setNgoRequestFilter(f)}>
+                  {f === 'all' ? 'All' : f === 'fulfilled' ? 'Fulfilled' : f.charAt(0).toUpperCase() + f.slice(1)}
+                  {f !== 'all' && ngoRequests.length > 0 && (
+                    <span style={{ marginLeft: 6, background: 'rgba(255,255,255,0.08)', padding: '0 6px', borderRadius: 99, fontSize: '0.7rem' }}>
+                      {ngoRequests.filter(r => r.status === f).length}
+                    </span>
+                  )}
+                </button>
+              ))}
+              <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                {filteredNgoRequests.length} result{filteredNgoRequests.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {loading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="skeleton" style={{ height: 140, borderRadius: 'var(--radius-lg)' }} />
+                ))}
+              </div>
+            ) : filteredNgoRequests.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state__icon">📋</div>
+                <h3 className="empty-state__title">No NGO food requests</h3>
+                <p className="empty-state__text">No requests from NGOs in your city yet.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {filteredNgoRequests.map((req, idx) => {
+                  const urgency = URGENCY_MAP[req.urgencyLevel] || URGENCY_MAP.medium;
+                  const statusInfo = NGO_REQ_STATUS_MAP[req.status] || NGO_REQ_STATUS_MAP.pending;
+                  return (
+                    <div key={req._id} style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: '20px 24px', animation: 'fadeInUp 0.3s ease both', animationDelay: `${idx * 0.05}s` }}>
+                      {/* Header */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+                        <div>
+                          <div style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.04)', padding: '2px 8px', borderRadius: 4, display: 'inline-block', marginBottom: 6 }}>
+                            #{String(req._id).slice(-8).toUpperCase()}
+                          </div>
+                          <div style={{ fontWeight: 800, fontSize: '1rem', marginBottom: 4 }}>
+                            {req.ngoId?.ngoName || '—'}
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                            📍 {req.ngoId?.ngoCity}, {req.ngoId?.ngoState} · {req.ngoId?.ngoEmail}
+                          </div>
+                          <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                            Submitted by {req.requestedBy?.firstName} {req.requestedBy?.surname} · {new Date(req.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: '0.72rem', fontWeight: 700, background: urgency.bg, color: urgency.color }}>
+                            🔥 {urgency.label} Priority
+                          </span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 99, fontSize: '0.78rem', fontWeight: 700, background: statusInfo.bg, color: statusInfo.color }}>
+                            {statusInfo.icon} {statusInfo.label}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Food items */}
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-orange)', marginBottom: 8 }}>
+                          🍱 Food Items Requested ({(req.foodItemsNeeded || []).length})
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {(req.foodItemsNeeded || []).map((item, i) => (
+                            <span key={i} style={{ background: 'rgba(249,115,22,0.1)', color: 'var(--color-orange)', padding: '3px 10px', borderRadius: 99, fontSize: '0.75rem', fontWeight: 600 }}>
+                              {item.foodName} · {item.quantity}{item.quantityType} ({item.category})
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Purpose */}
+                      <div style={{ fontSize: '0.83rem', color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
+                        <strong style={{ color: 'var(--text-primary)' }}>Purpose:</strong> {req.purpose}
+                      </div>
+
+                      {/* Meta */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: '0.78rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)', paddingTop: 10, marginBottom: 14 }}>
+                        {req.numberOfBeneficiaries > 0 && <span>👥 {req.numberOfBeneficiaries} beneficiaries</span>}
+                        <span>📍 {req.contactDetails?.city}</span>
+                        <span>📞 {req.contactDetails?.contactPersonName} · {req.contactDetails?.phoneNumber}</span>
+                        {req.approvedAt && <span style={{ color: '#4ade80' }}>✅ Approved {new Date(req.approvedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>}
+                        {req.fulfilledAt && <span style={{ color: '#a78bfa' }}>🚚 Fulfilled {new Date(req.fulfilledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>}
+                      </div>
+
+                      {/* Rejection reason */}
+                      {req.status === 'rejected' && req.rejectedReason && (
+                        <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 8, border: '1px solid rgba(239,68,68,0.15)', fontSize: '0.82rem', color: '#f87171' }}>
+                          ⚠️ Rejected: {req.rejectedReason}
+                        </div>
+                      )}
+
+                      {/* Delivery address */}
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 14 }}>
+                        🏠 Delivery: {req.contactDetails?.deliveryAddress}, {req.contactDetails?.city}
+                      </div>
+
+                      {/* Action buttons */}
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {req.status === 'pending' && (
+                          <>
+                            <ActionBtn icon="✅" label="Approve" onClick={() => approveNgoRequest(req._id)} variant="teal" />
+                            <ActionBtn icon="✕" label="Reject" onClick={() => setNgoRejectModal(req._id)} variant="danger" />
+                          </>
+                        )}
+                        {req.status === 'approved' && (
+                          <ActionBtn icon="🚚" label="Mark Fulfilled" onClick={() => fulfillNgoRequest(req._id)} variant="primary" />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
-      {/* Reject Modal */}
+      {/* Reject Modal (Donations) */}
       {rejectModal && (
         <RejectModal
           onConfirm={(reason) => rejectDonation(rejectModal, reason)}
           onCancel={() => setRejectModal(null)}
+        />
+      )}
+
+      {/* Reject Modal (NGO Requests) */}
+      {ngoRejectModal && (
+        <RejectModal
+          onConfirm={(reason) => rejectNgoRequest(ngoRejectModal, reason)}
+          onCancel={() => setNgoRejectModal(null)}
         />
       )}
 

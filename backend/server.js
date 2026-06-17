@@ -12,6 +12,7 @@ import ngoRoutes from "./routes/ngoRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import userStatsRoutes from "./routes/userStatsRoutes.js";
 import statsRoutes from "./routes/statsRoutes.js";
+import ngoFoodRequestRoutes from "./routes/ngoFoodRequestRoutes.js";
 const port = process.env.PORT || 5000;
 
 connectDb();
@@ -44,6 +45,7 @@ app.use('/aahar/ngo', ngoRoutes);
 app.use('/aahar/admin', adminRoutes);
 app.use('/aahar/user-stats', userStatsRoutes);
 app.use('/aahar/stats', statsRoutes);
+app.use('/aahar/ngo-food-requests', ngoFoodRequestRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: "Welcome to Aahaar API. The server is running successfully." });

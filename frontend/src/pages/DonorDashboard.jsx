@@ -135,8 +135,8 @@ export default function DonorDashboard() {
           <Link to="/donate" className="dashboard-sidebar__nav-item">
             <span>➕</span> New Donation
           </Link>
-          <Link to="/ngo-register" className="dashboard-sidebar__nav-item">
-            <span>🏢</span> NGO Info
+          <Link to="/ngo-dashboard" className="dashboard-sidebar__nav-item">
+            <span>🏢</span> NGO Portal
           </Link>
           <Link to="/" className="dashboard-sidebar__nav-item">
             <span>🏠</span> Home

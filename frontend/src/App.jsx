@@ -13,6 +13,7 @@ import DonorDashboard from './pages/DonorDashboard';
 import CreateDonation from './pages/CreateDonation';
 import AdminDashboard from './pages/AdminDashboard';
 import NgoRegistration from './pages/NgoRegistration';
+import NgoDashboard from './pages/NgoDashboard';
 import StatsPage from './pages/StatsPage';
 import AboutPage from './pages/AboutPage';
 
@@ -53,6 +54,14 @@ function AppRoutes() {
             <AdminRoute>
               <AdminDashboard />
             </AdminRoute>
+          }
+        />
+        <Route
+          path="/ngo-dashboard"
+          element={
+            <ProtectedRoute>
+              <NgoDashboard />
+            </ProtectedRoute>
           }
         />
 

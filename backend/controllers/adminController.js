@@ -2,6 +2,7 @@ import asyncHandler from "../middlewares/asyncHandler.js";
 import User from "../models/userModel.js";
 import FoodInfo from "../models/foodInfoModel.js";
 import Ngo from "../models/ngoModel.js";
+import NgoFoodRequest from "../models/ngoFoodRequestModel.js";
 
 //get Ngos based on their cities
 const getNgoBasedOnCity = asyncHandler(async(req, res) => {
@@ -314,6 +315,85 @@ const completeFoodDonation = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get all NGO food requests (admin — by city)
+// @route   GET /api/admin/ngo-food-requests
+// @access  Private/Admin
+const getAllNgoFoodRequests = asyncHandler(async (req, res) => {
+  const adminCity = req.user.city;
+  // Find NGOs in admin's city
+  const cityNgos = await Ngo.find({ ngoCity: adminCity });
+  const ngoIds = cityNgos.map(n => n._id);
+  const requests = await NgoFoodRequest.find({ ngoId: { $in: ngoIds } })
+    .sort({ createdAt: -1 })
+    .populate('ngoId', 'ngoName ngoEmail ngoCity ngoState ngoPhone isApproved')
+    .populate('requestedBy', 'firstName surname email')
+    .populate('approvedBy', 'firstName surname')
+    .populate('rejectedBy', 'firstName surname');
+  res.status(200).json({ requests, message: 'NGO food requests fetched successfully' });
+});
+
+// @desc    Approve an NGO food request
+// @route   PUT /api/admin/ngo-food-requests/:id/approve
+// @access  Private/Admin
+const approveNgoFoodRequest = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const request = await NgoFoodRequest.findById(id);
+  if (!request) { res.status(404); throw new Error('Request not found'); }
+  if (request.status !== 'pending') { res.status(400); throw new Error('Request already processed'); }
+  request.status = 'approved';
+  request.approvedBy = req.user._id;
+  request.approvedAt = new Date();
+  request.adminInReview = false;
+  await request.save();
+  res.status(200).json({ message: 'NGO food request approved', request });
+});
+
+// @desc    Reject an NGO food request
+// @route   PUT /api/admin/ngo-food-requests/:id/reject
+// @access  Private/Admin
+const rejectNgoFoodRequest = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { rejectionReason } = req.body;
+  const request = await NgoFoodRequest.findById(id);
+  if (!request) { res.status(404); throw new Error('Request not found'); }
+  if (request.status === 'rejected') { res.status(400); throw new Error('Already rejected'); }
+  request.status = 'rejected';
+  request.rejectedBy = req.user._id;
+  request.rejectedAt = new Date();
+  request.rejectedReason = rejectionReason || 'No reason provided';
+  request.adminInReview = false;
+  await request.save();
+  res.status(200).json({ message: 'NGO food request rejected', request });
+});
+
+// @desc    Mark an NGO food request as fulfilled
+// @route   PUT /api/admin/ngo-food-requests/:id/fulfill
+// @access  Private/Admin
+const fulfillNgoFoodRequest = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { adminNotes } = req.body;
+  const request = await NgoFoodRequest.findById(id);
+  if (!request) { res.status(404); throw new Error('Request not found'); }
+  if (request.status !== 'approved') { res.status(400); throw new Error('Request must be approved before fulfillment'); }
+  request.status = 'fulfilled';
+  request.fulfilledAt = new Date();
+  if (adminNotes) request.adminNotes = adminNotes;
+  await request.save();
+  res.status(200).json({ message: 'NGO food request marked as fulfilled', request });
+});
+
+// @desc    Toggle admin review flag for NGO food request
+// @route   PUT /api/admin/ngo-food-requests/:id/toggle-review
+// @access  Private/Admin
+const toggleNgoRequestReview = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const request = await NgoFoodRequest.findById(id);
+  if (!request) { res.status(404); throw new Error('Request not found'); }
+  request.adminInReview = !request.adminInReview;
+  await request.save();
+  res.status(200).json({ message: 'Review status toggled', request });
+});
+
 export { 
   getAllUsers, 
   makeUserAdmin, 
@@ -328,5 +408,10 @@ export {
   getFoodInfoByCity,
   updateFoodInfoQuantity,
   triggerInReview,
-  completeFoodDonation
+  completeFoodDonation,
+  getAllNgoFoodRequests,
+  approveNgoFoodRequest,
+  rejectNgoFoodRequest,
+  fulfillNgoFoodRequest,
+  toggleNgoRequestReview
 };
