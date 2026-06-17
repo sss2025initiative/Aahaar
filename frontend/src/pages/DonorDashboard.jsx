@@ -35,7 +35,7 @@ function SkeletonDonation() {
   );
 }
 
-const FILTER_OPTIONS = ['all', 'pending', 'approved', 'rejected'];
+const FILTER_OPTIONS = ['all', 'pending', 'approved', 'rejected', 'done'];
 
 export default function DonorDashboard() {
   const { user, logout, uploadAadhaar } = useAuth();
@@ -98,6 +98,7 @@ export default function DonorDashboard() {
   const pending = donations.filter(d => d.status === 'pending').length;
   const approved = donations.filter(d => d.status === 'approved').length;
   const rejected = donations.filter(d => d.status === 'rejected').length;
+  const done = donations.filter(d => d.status === 'done').length;
 
   const filtered = filter === 'all' ? donations : donations.filter(d => d.status === filter);
 
@@ -106,6 +107,7 @@ export default function DonorDashboard() {
     { label: 'Pending', value: pending, icon: '⏳', grad: 'linear-gradient(135deg,#eab308,#d97706)', sub: 'Awaiting review' },
     { label: 'Approved', value: approved, icon: '✅', grad: 'var(--grad-green)', sub: 'Accepted by NGO' },
     { label: 'Rejected', value: rejected, icon: '❌', grad: 'var(--grad-red)', sub: 'Not accepted' },
+    { label: 'Completed', value: done, icon: '🚚', grad: 'var(--grad-purple)', sub: 'Picked up / Done' },
   ];
 
   const avatarLetter = (user?.firstName || 'U')[0].toUpperCase();
@@ -271,9 +273,9 @@ export default function DonorDashboard() {
         )}
 
         {/* Stat Cards */}
-        <div className="dashboard-stats" style={{ marginBottom: 28 }}>
+        <div className="dashboard-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, marginBottom: 28 }}>
           {loading ? (
-            [1, 2, 3, 4].map(i => <SkeletonStatCard key={i} />)
+            [1, 2, 3, 4, 5].map(i => <SkeletonStatCard key={i} />)
           ) : stats.map((s, i) => (
             <div key={i} className="dash-stat-card" style={{ animationDelay: `${i * 0.08}s`, animation: 'fadeInUp 0.4s ease both' }}>
               <div className="dash-stat-card__icon" style={{ background: s.grad }}>{s.icon}</div>
@@ -306,7 +308,7 @@ export default function DonorDashboard() {
           <div className="filter-bar">
             {FILTER_OPTIONS.map(opt => (
               <button key={opt} className={`filter-btn ${filter === opt ? 'filter-btn--active' : ''}`} onClick={() => setFilter(opt)}>
-                {opt === 'all' ? 'All' : opt.charAt(0).toUpperCase() + opt.slice(1)}
+                {opt === 'all' ? 'All' : opt === 'done' ? 'Completed' : opt.charAt(0).toUpperCase() + opt.slice(1)}
                 {opt !== 'all' && (
                   <span style={{ marginLeft: 6, background: 'rgba(255,255,255,0.1)', padding: '0px 6px', borderRadius: 99, fontSize: '0.7rem' }}>
                     {donations.filter(d => d.status === opt).length}
@@ -344,7 +346,7 @@ export default function DonorDashboard() {
                         {donation.createdAt ? new Date(donation.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                       </div>
                     </div>
-                    <StatusBadge status={donation.adminInReview ? 'inreview' : donation.status} />
+                    <StatusBadge status={(donation.status === 'pending' && donation.adminInReview) ? 'inreview' : donation.status} />
                   </div>
 
                   <div className="donation-card__items">
@@ -365,7 +367,7 @@ export default function DonorDashboard() {
                     {(donation.foodItemDetails || []).length > 0 && (
                       <span className="donation-card__meta-item">🍽️ {(donation.foodItemDetails || []).length} item{(donation.foodItemDetails || []).length !== 1 ? 's' : ''}</span>
                     )}
-                    {donation.adminInReview && (
+                    {donation.status === 'pending' && donation.adminInReview && (
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: 'var(--color-teal)' }}>🔍 Under Admin Review</span>
                     )}
                   </div>

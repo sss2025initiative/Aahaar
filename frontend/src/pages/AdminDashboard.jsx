@@ -47,7 +47,50 @@ function RejectModal({ onConfirm, onCancel }) {
   );
 }
 
-function ReviewDetailsModal({ donation, onApprove, onReject, onClose }) {
+function ReviewDetailsModal({ donation, onApprove, onReject, onMarkAsDone, onClose, onUpdateQuantities }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [items, setItems] = useState(donation.foodItemDetails || []);
+  const [updating, setUpdating] = useState(false);
+
+  const handleQtyChange = (idx, val) => {
+    const newItems = [...items];
+    newItems[idx] = { ...newItems[idx], quantity: val === '' ? '' : Number(val) };
+    setItems(newItems);
+  };
+
+  const handleTypeChange = (idx, val) => {
+    const newItems = [...items];
+    newItems[idx] = { ...newItems[idx], quantityType: val };
+    setItems(newItems);
+  };
+
+  const handleSave = async () => {
+    if (items.some(item => item.quantity <= 0 || isNaN(item.quantity))) {
+      showToast('Please enter valid quantities greater than 0', 'error');
+      return;
+    }
+    setUpdating(true);
+    try {
+      const payload = {
+        foodItems: items.map(item => ({
+          foodItemId: item._id,
+          quantity: Number(item.quantity),
+          quantityType: item.quantityType
+        }))
+      };
+      await api.put(`/aahar/admin/food-donations/${donation._id}/quantity-updatation`, payload);
+      showToast('Quantities updated successfully', 'success');
+      setIsEditing(false);
+      if (onUpdateQuantities) {
+        onUpdateQuantities();
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to update quantities', 'error');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 650, width: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -78,9 +121,20 @@ function ReviewDetailsModal({ donation, onApprove, onReject, onClose }) {
 
           {/* Food Items List */}
           <div>
-            <h4 style={{ fontSize: '0.9rem', color: 'var(--color-orange)', marginBottom: 8, fontWeight: 700 }}>🍱 Food Items ({(donation.foodItemDetails || []).length})</h4>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <h4 style={{ fontSize: '0.9rem', color: 'var(--color-orange)', fontWeight: 700, margin: 0 }}>🍱 Food Items ({(donation.foodItemDetails || []).length})</h4>
+              {(donation.status === 'pending' || donation.status === 'approved') && !isEditing && (
+                <button
+                  className="btn-ghost"
+                  style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                  onClick={() => setIsEditing(true)}
+                >
+                  ✏️ Edit Quantities
+                </button>
+              )}
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {(donation.foodItemDetails || []).map((item, idx) => (
+              {items.map((item, idx) => (
                 <div key={idx} style={{ padding: 14, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', gap: 14, alignItems: 'center' }}>
                   {item.imageUrl && item.imageUrl.length > 0 && (
                     <img 
@@ -100,21 +154,63 @@ function ReviewDetailsModal({ donation, onApprove, onReject, onClose }) {
                       </div>
                     )}
                   </div>
-                  <div style={{ fontWeight: 800, color: 'var(--color-orange)', fontSize: '1rem' }}>
-                    {item.quantity} {item.quantityType}
-                  </div>
+                  {isEditing ? (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+                      <input
+                        type="number"
+                        className="form-input"
+                        style={{ width: 80, padding: '4px 8px', fontSize: '0.9rem', marginBottom: 0 }}
+                        value={item.quantity}
+                        onChange={e => handleQtyChange(idx, e.target.value)}
+                        min="1"
+                      />
+                      <select
+                        className="form-input"
+                        style={{ width: 80, padding: '4px 8px', fontSize: '0.9rem', marginBottom: 0 }}
+                        value={item.quantityType}
+                        onChange={e => handleTypeChange(idx, e.target.value)}
+                      >
+                        {['kg', 'g', 'ml', 'l', 'pcs'].map(type => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div style={{ fontWeight: 800, color: 'var(--color-orange)', fontSize: '1rem' }}>
+                      {item.quantity} {item.quantityType}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
+            {isEditing && (
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+                <button className="btn-ghost" style={{ fontSize: '0.8rem', padding: '6px 12px' }} onClick={() => { setIsEditing(false); setItems(donation.foodItemDetails || []); }}>
+                  Cancel
+                </button>
+                <button className="btn-primary" style={{ fontSize: '0.8rem', padding: '6px 12px', background: 'var(--grad-teal)' }} onClick={handleSave} disabled={updating}>
+                  {updating ? 'Saving...' : 'Save Quantities'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="modal__actions" style={{ marginTop: 24, borderTop: '1px solid var(--border-color)', paddingTop: 16 }}>
-          <button className="btn-ghost" onClick={onClose}>Close</button>
-          {donation.status === 'pending' && (
+          <button className="btn-ghost" onClick={onClose} disabled={isEditing || updating}>Close</button>
+          {!isEditing && (
             <>
-              <button className="btn-danger" onClick={onReject}>Reject</button>
-              <button className="btn-primary" onClick={onApprove} style={{ background: 'var(--grad-green)' }}>Approve</button>
+              {donation.status === 'pending' && (
+                <>
+                  <button className="btn-danger" onClick={onReject}>Reject</button>
+                  <button className="btn-primary" onClick={onApprove} style={{ background: 'var(--grad-green)' }}>Approve</button>
+                </>
+              )}
+              {donation.status === 'approved' && (
+                <button className="btn-primary" onClick={onMarkAsDone} style={{ background: 'var(--grad-purple)' }}>
+                  Mark as Done
+                </button>
+              )}
             </>
           )}
         </div>
@@ -133,6 +229,25 @@ function ActionBtn({ label, icon, onClick, variant = 'ghost', disabled }) {
 }
 
 function TrendChart({ data, type }) {
+  const [prevData, setPrevData] = useState(data);
+  const [prevType, setPrevType] = useState(type);
+  const [isLoaded, setIsLoaded] = useState(true);
+
+  if (data !== prevData || type !== prevType) {
+    setPrevData(data);
+    setPrevType(type);
+    setIsLoaded(false);
+  }
+
+  useEffect(() => {
+    if (!isLoaded) {
+      const timer = setTimeout(() => {
+        setIsLoaded(true);
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoaded]);
+
   let formatted;
   if (type === 'weekly') {
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -201,10 +316,11 @@ function TrendChart({ data, type }) {
                 color: '#fff',
                 opacity: 0,
                 pointerEvents: 'none',
-                transition: 'opacity 0.2s ease',
+                transition: 'opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                 whiteSpace: 'nowrap',
                 zIndex: 10,
-                boxShadow: 'var(--shadow-sm)'
+                boxShadow: 'var(--shadow-sm)',
+                transform: 'translateY(0)'
               }}>
                 {point.quantity} kg ({point.count} donations)
               </div>
@@ -212,22 +328,33 @@ function TrendChart({ data, type }) {
               <div style={{
                 width: '70%',
                 maxWidth: 40,
-                height: `${heightPct}%`,
+                height: isLoaded ? `${heightPct}%` : '0%',
                 background: 'var(--grad-primary)',
                 borderRadius: '4px 4px 0 0',
-                transition: 'height 0.8s ease',
+                transition: 'height 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.25s ease, filter 0.25s ease, box-shadow 0.25s ease',
                 cursor: 'pointer',
-                boxShadow: '0 0 10px rgba(249,115,22,0.1)'
+                boxShadow: '0 0 10px rgba(249,115,22,0.1)',
+                transformOrigin: 'bottom'
               }} 
               onMouseEnter={e => {
                 const tooltip = e.currentTarget.previousSibling;
-                if (tooltip) tooltip.style.opacity = '1';
+                if (tooltip) {
+                  tooltip.style.opacity = '1';
+                  tooltip.style.transform = 'translateY(-6px)';
+                }
                 e.currentTarget.style.filter = 'brightness(1.2)';
+                e.currentTarget.style.transform = 'scaleY(1.05)';
+                e.currentTarget.style.boxShadow = '0 0 15px rgba(249,115,22,0.4)';
               }}
               onMouseLeave={e => {
                 const tooltip = e.currentTarget.previousSibling;
-                if (tooltip) tooltip.style.opacity = '0';
+                if (tooltip) {
+                  tooltip.style.opacity = '0';
+                  tooltip.style.transform = 'translateY(0)';
+                }
                 e.currentTarget.style.filter = 'none';
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = '0 0 10px rgba(249,115,22,0.1)';
               }}
               />
             </div>
@@ -327,6 +454,7 @@ export default function AdminDashboard() {
   // Donation actions
   const approveDonation = async (id) => { try { await api.put(`/aahar/admin/food-donations/${id}/approve`); showToast('Donation approved ✅', 'success'); fetchDonations(); } catch { showToast('Failed', 'error'); } };
   const rejectDonation = async (id, reason) => { try { await api.put(`/aahar/admin/food-donations/${id}/reject`, { rejectionReason: reason }); showToast('Donation rejected', 'success'); setRejectModal(null); fetchDonations(); } catch { showToast('Failed', 'error'); } };
+  const markAsDone = async (id) => { try { await api.put(`/aahar/admin/food-donations/${id}/done`); showToast('Donation marked as Done ✅', 'success'); fetchDonations(); } catch { showToast('Failed to mark donation as done', 'error'); } };
 
   // NGO actions
   const approveNgo = async (id) => { try { await api.put(`/aahar/admin/approve-ngo/${id}`); showToast('NGO approved ✅', 'success'); fetchNgos(); } catch { showToast('Failed', 'error'); } };
@@ -553,9 +681,9 @@ export default function AdminDashboard() {
         {tab === 'donations' && (
           <div className="dashboard-section" style={{ animation: 'fadeInUp 0.3s ease' }}>
             <div className="filter-bar">
-              {['all', 'pending', 'approved', 'rejected'].map(f => (
+              {['all', 'pending', 'approved', 'rejected', 'done'].map(f => (
                 <button key={f} className={`filter-btn ${donationFilter === f ? 'filter-btn--active' : ''}`} onClick={() => setDonationFilter(f)}>
-                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                  {f === 'done' ? 'Completed' : f.charAt(0).toUpperCase() + f.slice(1)}
                   {f !== 'all' && donations.length > 0 && (
                     <span style={{ marginLeft: 6, background: 'rgba(255,255,255,0.08)', padding: '0 6px', borderRadius: 99, fontSize: '0.7rem' }}>
                       {donations.filter(d => d.status === f).length}
@@ -616,7 +744,7 @@ export default function AdminDashboard() {
                         </td>
                         <td style={{ fontSize: '0.85rem' }}>{d.contactPersonName || d.contactDetails?.contactPersonName || '—'}</td>
                         <td style={{ fontSize: '0.85rem' }}>{d.city || d.contactDetails?.city || '—'}</td>
-                        <td><StatusBadge status={d.adminInReview ? 'inreview' : d.status} /></td>
+                        <td><StatusBadge status={(d.status === 'pending' && d.adminInReview) ? 'inreview' : d.status} /></td>
                         <td>
                           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                             <ActionBtn icon="🔍" label="Review" onClick={() => {
@@ -625,8 +753,15 @@ export default function AdminDashboard() {
                                 api.put(`/aahar/admin/food-donations/${d._id}/approve-inreview`).then(() => fetchDonations()).catch(() => {});
                               }
                             }} />
-                            <ActionBtn icon="✅" label="Approve" onClick={() => approveDonation(d._id)} variant="teal" />
-                            <ActionBtn icon="✕" label="Reject" onClick={() => setRejectModal(d._id)} variant="danger" />
+                            {d.status === 'pending' && (
+                              <>
+                                <ActionBtn icon="✅" label="Approve" onClick={() => approveDonation(d._id)} variant="teal" />
+                                <ActionBtn icon="✕" label="Reject" onClick={() => setRejectModal(d._id)} variant="danger" />
+                              </>
+                            )}
+                            {d.status === 'approved' && (
+                              <ActionBtn icon="📦" label="Mark as Done" onClick={() => markAsDone(d._id)} variant="teal" />
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -800,6 +935,18 @@ export default function AdminDashboard() {
           onReject={() => {
             setRejectModal(reviewDonation._id);
             setReviewDonation(null);
+          }}
+          onMarkAsDone={() => {
+            markAsDone(reviewDonation._id);
+            setReviewDonation(null);
+          }}
+          onUpdateQuantities={() => {
+            fetchDonations();
+            // Also update the reviewDonation modal content with the freshly fetched info
+            api.get('/aahar/admin/getFoodInfoByCity').then(res => {
+              const fresh = (res.data?.foodInfo || []).find(x => x._id === reviewDonation._id);
+              if (fresh) setReviewDonation(fresh);
+            });
           }}
           onClose={() => setReviewDonation(null)}
         />

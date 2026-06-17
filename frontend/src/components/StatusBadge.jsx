@@ -19,6 +19,11 @@ const STATUS_CONFIG = {
     className: 'badge-inreview',
     dot: true,
   },
+  done: {
+    label: 'Completed',
+    className: 'badge-approved',
+    dot: false,
+  },
 };
 
 export default function StatusBadge({ status }) {

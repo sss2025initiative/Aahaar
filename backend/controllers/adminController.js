@@ -176,6 +176,7 @@ const approveFoodDonation = asyncHandler(async (req, res) => {
   
   donation.isApproved = true;
   donation.status = 'approved';
+  donation.adminInReview = false;
   donation.approvedBy = req.user._id;
   donation.approvedAt = new Date();
   
@@ -261,6 +262,7 @@ const rejectFoodDonation = asyncHandler(async (req, res) => {
   
   donation.status = 'rejected';
   donation.isApproved = false;
+  donation.adminInReview = false;
   donation.rejectedReason = rejectionReason || "No reason provided";
   donation.rejectedBy = req.user._id;
   donation.rejectedAt = new Date();
@@ -289,6 +291,29 @@ const triggerInReview = asyncHandler(async (req, res) => {
   });
 })
 
+// @desc    Mark a food donation as done
+// @route   PUT /api/admin/food-donations/:donationId/done
+// @access  Private/Admin
+const completeFoodDonation = asyncHandler(async (req, res) => {
+  const { donationId } = req.params;
+
+  const donation = await FoodInfo.findById(donationId);
+  if (!donation) {
+    res.status(404);
+    throw new Error("Donation not found");
+  }
+
+  donation.status = 'done';
+  donation.adminInReview = false;
+  donation.completedAt = new Date();
+
+  await donation.save();
+  res.status(200).json({
+    message: "Food donation marked as done successfully",
+    donation
+  });
+});
+
 export { 
   getAllUsers, 
   makeUserAdmin, 
@@ -302,5 +327,6 @@ export {
   verifyUser,
   getFoodInfoByCity,
   updateFoodInfoQuantity,
-  triggerInReview
+  triggerInReview,
+  completeFoodDonation
 };

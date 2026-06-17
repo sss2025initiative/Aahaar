@@ -65,22 +65,24 @@ export default function Navbar() {
             <Link to="/stats" className={`navbar__link ${isActive('/stats') ? 'navbar__link--active' : ''}`}>
               Stats
             </Link>
-            {user && (
+            {user && !isAdmin && (
               <Link to="/dashboard" className={`navbar__link ${isActive('/dashboard') ? 'navbar__link--active' : ''}`}>
                 Dashboard
               </Link>
             )}
-            {user && (
+            {user && !isAdmin && (
               <Link to="/donate" className={`navbar__link ${isActive('/donate') ? 'navbar__link--active' : ''}`}>
                 Donate Food
               </Link>
             )}
-            <Link to="/ngo-register" className={`navbar__link ${isActive('/ngo-register') ? 'navbar__link--active' : ''}`}>
-              NGO Register
-            </Link>
+            {!isAdmin && (
+              <Link to="/ngo-register" className={`navbar__link ${isActive('/ngo-register') ? 'navbar__link--active' : ''}`}>
+                NGO Register
+              </Link>
+            )}
             {isAdmin && (
               <Link to="/admin" className={`navbar__link navbar__link--admin ${isActive('/admin') ? 'navbar__link--active' : ''}`}>
-                ⚡ Admin
+                ⚡ Admin Panel
               </Link>
             )}
           </div>
@@ -117,12 +119,16 @@ export default function Navbar() {
                       )}
                     </div>
                     <div className="navbar__dropdown-divider" />
-                    <Link to="/dashboard" className="navbar__dropdown-item">
-                      📊 My Dashboard
-                    </Link>
-                    <Link to="/donate" className="navbar__dropdown-item">
-                      🍱 Donate Food
-                    </Link>
+                    {!isAdmin && (
+                      <Link to="/dashboard" className="navbar__dropdown-item">
+                        📊 My Dashboard
+                      </Link>
+                    )}
+                    {!isAdmin && (
+                      <Link to="/donate" className="navbar__dropdown-item">
+                        🍱 Donate Food
+                      </Link>
+                    )}
                     {isAdmin && (
                       <Link to="/admin" className="navbar__dropdown-item">
                         ⚡ Admin Panel
@@ -166,10 +172,10 @@ export default function Navbar() {
           <Link to="/stats" className="navbar__mobile-link">📊 Stats</Link>
           {user ? (
             <>
-              <Link to="/dashboard" className="navbar__mobile-link">📊 Dashboard</Link>
-              <Link to="/donate" className="navbar__mobile-link">🍱 Donate Food</Link>
+              {!isAdmin && <Link to="/dashboard" className="navbar__mobile-link">📊 Dashboard</Link>}
+              {!isAdmin && <Link to="/donate" className="navbar__mobile-link">🍱 Donate Food</Link>}
               {isAdmin && <Link to="/admin" className="navbar__mobile-link">⚡ Admin Panel</Link>}
-              <Link to="/ngo-register" className="navbar__mobile-link">🏢 NGO Register</Link>
+              {!isAdmin && <Link to="/ngo-register" className="navbar__mobile-link">🏢 NGO Register</Link>}
               <div className="navbar__mobile-divider" />
               <button className="navbar__mobile-link" style={{ color: 'var(--color-red)', background: 'none', border: 'none', textAlign: 'left', width: '100%', cursor: 'pointer' }} onClick={handleLogout}>
                 🚪 Logout
