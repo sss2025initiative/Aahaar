@@ -1,4 +1,5 @@
-import React, { createContext, useState, useCallback, useEffect } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useState, useCallback} from 'react';
 import api from '../api/axios';
 
 export const AuthContext = createContext(null);
@@ -106,7 +107,7 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, []);
 
   const logout = useCallback(async () => {
     try {

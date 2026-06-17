@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { useEffect, useState } from 'react';
 
 const ICONS = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
 const COLORS = {
@@ -22,6 +23,11 @@ export function showToast(message, type = 'info', duration = 4000) {
   }, duration);
 }
 
+export function dismissToast(id) {
+  toastQueue = toastQueue.filter((t) => t.id !== id);
+  listeners.forEach((fn) => fn([...toastQueue]));
+}
+
 export default function Toast() {
   const [toasts, setToasts] = useState([]);
 
@@ -32,11 +38,6 @@ export default function Toast() {
       listeners = listeners.filter((fn) => fn !== handler);
     };
   }, []);
-
-  const dismiss = (id) => {
-    toastQueue = toastQueue.filter((t) => t.id !== id);
-    setToasts([...toastQueue]);
-  };
 
   if (toasts.length === 0) return null;
 
@@ -52,7 +53,7 @@ export default function Toast() {
             {ICONS[toast.type]}
           </span>
           <span className="toast-message">{toast.message}</span>
-          <button className="toast-close" onClick={() => dismiss(toast.id)}>
+          <button className="toast-close" onClick={() => dismissToast(toast.id)}>
             ✕
           </button>
         </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { showToast } from '../components/Toast';
@@ -14,7 +14,7 @@ const INDIAN_STATES = [
 ];
 
 export default function RegisterPage() {
-  const { register, uploadAadhaar, sendAadhaarOTP, verifyAadhaarOTP, loading } = useAuth();
+  const { register, uploadAadhaar, sendAadhaarOTP, verifyAadhaarOTP } = useAuth();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(0);
@@ -216,7 +216,7 @@ export default function RegisterPage() {
         {/* Step Indicator */}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
           {STEPS.map((label, i) => (
-            <React.Fragment key={i}>
+            <Fragment key={i}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: '50%',
@@ -240,7 +240,7 @@ export default function RegisterPage() {
                   transition: 'background 0.3s ease',
                 }} />
               )}
-            </React.Fragment>
+            </Fragment>
           ))}
         </div>
 

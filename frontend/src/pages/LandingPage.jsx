@@ -97,13 +97,11 @@ function FaqItem({ q, a }) {
 
 export default function LandingPage() {
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api.get('/aahar/stats/getStats')
       .then(res => setStats(res.data?.data || res.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
   }, []);
 
   const totalDonations = stats?.totalDonations || 1280;

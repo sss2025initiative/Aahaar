@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import { showToast } from '../components/Toast';
@@ -47,7 +47,6 @@ const SECTIONS = [
 ];
 
 export default function NgoRegistration() {
-  const navigate = useNavigate();
   const { user, sendAadhaarOTP, verifyAadhaarOTP } = useAuth();
   const [form, setForm] = useState({
     ngoName: '', ngoEmail: '', ngoPhone: '', ngoAddress: '', ngoCity: '',

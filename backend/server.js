@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-dotenv.config({path: "./utils/.env" });
+dotenv.config({path: "./utils/.env", override: true });
 import path from 'path';
 
 import express from 'express';
@@ -18,8 +18,8 @@ connectDb();
 
 const app = express();
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  res.header("Access-Control-Allow-Origin", origin || "http://localhost:5173");
+  // const origin = req.headers.origin;
+  res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Credentials", "true");
   res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, Content-Length, X-Requested-With");

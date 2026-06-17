@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, Fragment } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import { showToast } from '../components/Toast';
-import StatusBadge from '../components/StatusBadge';
+
 
 const CATEGORIES = ['Fruits', 'Vegetables', 'Bakery', 'Dairy', 'Cooked Meals', 'Beverages', 'Packaged Food', 'Grains', 'Others'];
 const QTY_TYPES = ['kg', 'g', 'ml', 'l', 'pcs'];
@@ -26,7 +26,7 @@ export default function CreateDonation() {
   const [step, setStep] = useState(0);
   const [items, setItems] = useState([makeItem(donorId)]);
   const [contact, setContact] = useState({ fullAddress: '', city: user?.city || '', contactPersonName: user?.firstName ? `${user.firstName} ${user.surname || ''}`.trim() : '', phoneNumber: '', email: user?.email || '' });
-  const [ngoPreference, setNgoPreference] = useState('random');
+  const ngoPreference = 'random';
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -241,7 +241,7 @@ export default function CreateDonation() {
           {/* Step Indicator */}
           <div className="step-indicator">
             {STEPS.map((s, i) => (
-              <React.Fragment key={i}>
+              <Fragment key={i}>
                 <div className="step-indicator__item">
                   <div className={`step-indicator__circle ${i < step ? 'step-indicator__circle--done' : i === step ? 'step-indicator__circle--active' : ''}`}>
                     {i < step ? '✓' : s.icon}
@@ -254,7 +254,7 @@ export default function CreateDonation() {
                 {i < STEPS.length - 1 && (
                   <div className={`step-indicator__line ${i < step ? 'step-indicator__line--done' : ''}`} />
                 )}
-              </React.Fragment>
+              </Fragment>
             ))}
           </div>
 
