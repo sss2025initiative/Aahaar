@@ -68,6 +68,10 @@ const ngoFoodRequestSchema = new mongoose.Schema(
     rejectedReason: { type: String },
     fulfilledAt: { type: Date },
     adminNotes: { type: String },
+    acceptedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    acceptedAt: { type: Date },
+    expectedDeliveryDate: { type: Date },
+    verificationToken: { type: String },
   },
   { timestamps: true }
 );

@@ -1,4 +1,4 @@
-import {CreateFoodInfo,getFoodInfoById,updateFoodInfo,deleteFoodInfo,uploadFoodImages as uploadFoodImagesController} from "../controllers/foodInfoController.js"
+import {CreateFoodInfo,getFoodInfoById,updateFoodInfo,deleteFoodInfo,uploadFoodImages as uploadFoodImagesController,verifyDonationPickup} from "../controllers/foodInfoController.js"
 import { protect } from "../middlewares/authMiddleware.js";
 import express from "express";
 import { uploadFoodImages } from "../s3Config.js";
@@ -11,4 +11,5 @@ router.route('/createFoodInfo').post(protect,CreateFoodInfo);
 router.route('/getFoodInfoById/:id').get(protect,getFoodInfoById);
 router.route('/updateFoodInfo/:id').put(protect,updateFoodInfo);
 router.route('/deleteFoodInfo/:id').delete(protect,deleteFoodInfo);
+router.route('/verify-pickup/:id').put(protect,verifyDonationPickup);
 export default router;

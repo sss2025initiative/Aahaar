@@ -25,6 +25,7 @@ const foodInfoSchema = new mongoose.Schema({
   adminInReview:{type:Boolean,default:false}, 
   status: { type: String, enum: ['pending','approved','rejected','done'], default: 'pending' },
   isApproved:{type:Boolean,default:false},
+  verificationToken: { type: String },
   approvedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'},
   approvedAt:{type:Date},
   completedAt:{type:Date},

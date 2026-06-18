@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import { showToast } from '../components/Toast';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 const FOOD_CATEGORIES = [
   'Fruits', 'Vegetables', 'Bakery', 'Dairy', 'Cooked Meals',
@@ -106,6 +107,34 @@ function FoodItemRow({ item, idx, onRemove, onChange }) {
   );
 }
 
+function QrScannerComponent({ onScanSuccess, onScanError }) {
+  useEffect(() => {
+    const html5QrcodeScanner = new Html5QrcodeScanner(
+      "reader",
+      { 
+        fps: 10, 
+        qrbox: { width: 220, height: 220 },
+        aspectRatio: 1.0
+      },
+      /* verbose= */ false
+    );
+
+    html5QrcodeScanner.render(onScanSuccess, onScanError);
+
+    return () => {
+      html5QrcodeScanner.clear().catch(err => {
+        console.warn("Failed to clear html5QrcodeScanner:", err);
+      });
+    };
+  }, [onScanSuccess, onScanError]);
+
+  return (
+    <div style={{ width: '100%', maxWidth: 350, margin: '0 auto' }}>
+      <div id="reader" style={{ width: '100%', borderRadius: 12, overflow: 'hidden', border: 'none' }} />
+    </div>
+  );
+}
+
 export default function NgoDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -115,6 +144,13 @@ export default function NgoDashboard() {
   const [tab, setTab] = useState('overview'); // overview | request | history
   const [statusFilter, setStatusFilter] = useState('all');
   const [submitting, setSubmitting] = useState(false);
+  
+  // Verification Scanner States
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [verifyTab, setVerifyTab] = useState('scan');
+  const [manualToken, setManualToken] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [scannedData, setScannedData] = useState(null);
 
   // Form state
   const emptyItem = { foodName: '', quantity: '', quantityType: 'kg', category: '' };
@@ -143,6 +179,49 @@ export default function NgoDashboard() {
       setLoading(false);
     }
   }, []);
+
+  const handleVerifyPickup = async (donationId, token) => {
+    setVerifying(true);
+    try {
+      const url = donationId ? `/aahar/foodInfo/verify-pickup/${donationId}` : `/aahar/foodInfo/verify-pickup/token-only`;
+      const res = await api.put(url, { token });
+      showToast(res.data?.message || 'Pickup verified successfully!', 'success');
+      setScannedData(res.data?.donation || true);
+      fetchData();
+    } catch (err) {
+      if (!donationId) {
+        // Fallback to checking as an NGO food request fulfillment
+        try {
+          const resReq = await api.put('/aahar/ngo-food-requests/token-only/verify-fulfillment', { token });
+          showToast(resReq.data?.message || 'Fulfillment verified successfully!', 'success');
+          setScannedData(resReq.data?.request || true);
+          fetchData();
+          return;
+        } catch (err2) {
+          showToast(err2.response?.data?.message || err.response?.data?.message || 'Verification failed.', 'error');
+        }
+      } else {
+        showToast(err.response?.data?.message || 'Verification failed. Please check the token.', 'error');
+      }
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleVerifyRequestFulfillment = async (requestId, token) => {
+    setVerifying(true);
+    try {
+      const url = requestId ? `/aahar/ngo-food-requests/${requestId}/verify-fulfillment` : `/aahar/ngo-food-requests/token-only/verify-fulfillment`;
+      const res = await api.put(url, { token });
+      showToast(res.data?.message || 'Fulfillment verified successfully!', 'success');
+      setScannedData(res.data?.request || true);
+      fetchData();
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Verification failed. Please check the token.', 'error');
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   // Initial load — inlined to satisfy React Compiler (no external setState call in effect body)
   useEffect(() => {
@@ -414,13 +493,22 @@ export default function NgoDashboard() {
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4 }}>{ngo.ngoPurpose}</div>
                   </div>
                 </div>
-                <button
-                  className="btn-primary"
-                  style={{ background: 'var(--grad-teal)', padding: '10px 22px', fontSize: '0.88rem', whiteSpace: 'nowrap' }}
-                  onClick={() => setTab('request')}
-                >
-                  🍱 Request Food Now
-                </button>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <button
+                    className="btn-primary"
+                    style={{ background: 'var(--grad-purple)', padding: '10px 22px', fontSize: '0.88rem', whiteSpace: 'nowrap', border: 'none', color: '#fff' }}
+                    onClick={() => { setScannerOpen(true); setVerifyTab('scan'); setScannedData(null); setManualToken(''); }}
+                  >
+                    📷 Verify Pickup
+                  </button>
+                  <button
+                    className="btn-primary"
+                    style={{ background: 'var(--grad-teal)', padding: '10px 22px', fontSize: '0.88rem', whiteSpace: 'nowrap', border: 'none', color: '#fff' }}
+                    onClick={() => setTab('request')}
+                  >
+                    🍱 Request Food Now
+                  </button>
+                </div>
               </div>
             )}
 
@@ -719,8 +807,51 @@ export default function NgoDashboard() {
                         )}
                       </div>
 
-                      {/* Action buttons */}
-                      {req.status === 'approved' && (
+                       {/* Donor acceptance details */}
+                      {req.acceptedBy && (
+                        <div style={{
+                          marginTop: 14,
+                          padding: 14,
+                          background: 'rgba(168, 85, 247, 0.05)',
+                          border: '1px solid rgba(168, 85, 247, 0.2)',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: '0.82rem'
+                        }}>
+                          <div style={{ fontWeight: 700, color: '#c084fc', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            🤝 Fulfilling Donor Details
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, color: 'var(--text-secondary)' }}>
+                            <div>Donor: <strong style={{ color: 'var(--text-primary)' }}>{req.acceptedBy.firstName} {req.acceptedBy.surname}</strong></div>
+                            <div>Email: <strong style={{ color: 'var(--text-primary)' }}>{req.acceptedBy.email}</strong></div>
+                            <div style={{ gridColumn: '1 / -1', marginTop: 4 }}>
+                              Expected Delivery: <strong style={{ color: 'var(--text-primary)' }}>{new Date(req.expectedDeliveryDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>
+                            </div>
+                          </div>
+
+                          {req.status !== 'fulfilled' && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10 }}>
+                              <div>
+                                Code: <strong style={{ fontFamily: 'monospace', fontSize: '0.95rem', color: 'var(--color-orange)' }}>{req.verificationToken}</strong>
+                              </div>
+                              <button 
+                                className="btn-primary" 
+                                style={{ fontSize: '0.75rem', padding: '6px 12px', background: 'var(--grad-purple)', border: 'none', color: '#fff' }}
+                                onClick={() => {
+                                  setScannerOpen(true);
+                                  setVerifyTab('scan');
+                                  setScannedData(null);
+                                  setManualToken(req.verificationToken);
+                                }}
+                              >
+                                📷 Scan QR to Verify
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Action buttons (only show manual fulfill button if no donor has accepted yet) */}
+                      {req.status === 'approved' && !req.acceptedBy && (
                         <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: 12 }}>
                           <button
                             className="btn-primary"
@@ -728,7 +859,9 @@ export default function NgoDashboard() {
                               fontSize: '0.8rem',
                               padding: '8px 18px',
                               background: 'var(--grad-purple)',
-                              boxShadow: '0 0 12px rgba(168,85,247,0.2)'
+                              boxShadow: '0 0 12px rgba(168,85,247,0.2)',
+                              border: 'none',
+                              color: '#fff'
                             }}
                             onClick={() => handleFulfillRequest(req._id)}
                           >
@@ -751,6 +884,142 @@ export default function NgoDashboard() {
           </div>
         )}
       </main>
+
+      {/* Verify Pickup Scanner Modal */}
+      {scannerOpen && (
+        <div className="modal-overlay" onClick={() => !verifying && setScannerOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 450, width: '90%' }}>
+            <h3 className="modal__title" style={{ fontSize: '1.25rem', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              📷 Verify Food Pickup
+            </h3>
+
+            {scannedData ? (
+              /* Success Screen */
+              <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                <div style={{ fontSize: '3.5rem', color: '#4ade80', marginBottom: 16 }}>
+                  ✅
+                </div>
+                <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 8 }}>Verification Successful!</h4>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 20 }}>
+                  The food donation has been successfully verified and marked as **Completed**.
+                </p>
+                {scannedData.foodItemDetails && (
+                  <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: 8, padding: 12, textAlign: 'left', fontSize: '0.8rem', marginBottom: 20 }}>
+                    <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--color-orange)' }}>📦 Food Items Picked Up:</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {scannedData.foodItemDetails.map((item, i) => (
+                        <span key={i} style={{ background: 'rgba(255,255,255,0.04)', padding: '2px 8px', borderRadius: 4, fontSize: '0.75rem' }}>
+                          {item.foodName} ({item.quantity}{item.quantityType})
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <button className="btn-primary" style={{ background: 'var(--grad-purple)', border: 'none' }} onClick={() => setScannerOpen(false)}>
+                  Done
+                </button>
+              </div>
+            ) : (
+              /* Scanning/Input Screen */
+              <>
+                {/* Tabs */}
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: 16 }}>
+                  <button 
+                    style={{ 
+                      flex: 1, 
+                      padding: '10px 0', 
+                      background: 'none', 
+                      color: verifyTab === 'scan' ? 'var(--color-orange)' : 'var(--text-secondary)',
+                      borderBottom: verifyTab === 'scan' ? '2px solid var(--color-orange)' : 'none',
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => setVerifyTab('scan')}
+                  >
+                    📷 Scan QR Code
+                  </button>
+                  <button 
+                    style={{ 
+                      flex: 1, 
+                      padding: '10px 0', 
+                      background: 'none', 
+                      color: verifyTab === 'manual' ? 'var(--color-orange)' : 'var(--text-secondary)',
+                      borderBottom: verifyTab === 'manual' ? '2px solid var(--color-orange)' : 'none',
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => setVerifyTab('manual')}
+                  >
+                    ⌨️ Enter Code
+                  </button>
+                </div>
+
+                {verifyTab === 'scan' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                      Position the donor's QR code within the frame to automatically verify.
+                    </p>
+                    <QrScannerComponent 
+                      onScanSuccess={(decodedText) => {
+                        try {
+                          const parsed = JSON.parse(decodedText);
+                          if (parsed.id && parsed.token) {
+                            if (parsed.type === 'request') {
+                              handleVerifyRequestFulfillment(parsed.id, parsed.token);
+                            } else {
+                              handleVerifyPickup(parsed.id, parsed.token);
+                            }
+                          } else {
+                            showToast("Invalid QR structure", "error");
+                          }
+                        } catch {
+                          handleVerifyPickup(null, decodedText);
+                        }
+                      }}
+                      onScanError={() => {
+                        // Suppress scanning chatters
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      Type the 6-character verification token provided by the donor.
+                    </p>
+                    <div className="form-group">
+                      <label className="form-label">Verification Token</label>
+                      <input 
+                        className="form-input"
+                        placeholder="e.g. A8F92D"
+                        value={manualToken}
+                        onChange={(e) => setManualToken(e.target.value.toUpperCase())}
+                        maxLength={8}
+                        style={{ fontSize: '1.2rem', textAlign: 'center', letterSpacing: 2, fontWeight: 700 }}
+                      />
+                    </div>
+                    <button 
+                      className="btn-primary" 
+                      style={{ width: '100%', justifyContent: 'center', background: 'var(--grad-purple)', marginTop: 8, border: 'none' }}
+                      onClick={() => handleVerifyPickup(null, manualToken)}
+                      disabled={verifying || !manualToken.trim()}
+                    >
+                      {verifying ? 'Verifying...' : 'Verify & Complete Pickup'}
+                    </button>
+                  </div>
+                )}
+
+                <div className="modal__actions" style={{ marginTop: 20, borderTop: '1px solid var(--border-color)', paddingTop: 12 }}>
+                  <button className="btn-ghost" onClick={() => setScannerOpen(false)} disabled={verifying}>
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

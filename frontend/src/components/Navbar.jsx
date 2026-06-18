@@ -33,23 +33,29 @@ export default function Navbar() {
   const [hasNgo, setHasNgo] = useState(false);
 
   useEffect(() => {
-    if (user && !isAdmin) {
-      let active = true;
-      api.get('/aahar/ngo-food-requests/ngo-status')
-        .then(res => {
-          if (active && res.data?.ngo) {
-            setHasNgo(true);
-          } else if (active) {
+    let active = true;
+    const checkNgoStatus = async () => {
+      await Promise.resolve();
+      if (!active) return;
+      if (user && !isAdmin) {
+        try {
+          const res = await api.get('/aahar/ngo-food-requests/ngo-status');
+          if (active) {
+            setHasNgo(!!res.data?.ngo);
+          }
+        } catch {
+          if (active) {
             setHasNgo(false);
           }
-        })
-        .catch(() => {
-          if (active) setHasNgo(false);
-        });
-      return () => { active = false; };
-    } else {
-      setHasNgo(false);
-    }
+        }
+      } else {
+        if (active) {
+          setHasNgo(false);
+        }
+      }
+    };
+    checkNgoStatus();
+    return () => { active = false; };
   }, [user, isAdmin]);
 
   useEffect(() => {
@@ -58,10 +64,57 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const [activeRequests, setActiveRequests] = useState([]);
+  const [notiOpen, setNotiOpen] = useState(false);
+  const notiRef = useRef(null);
+
+  const fetchActiveRequests = async () => {
+    try {
+      const res = await api.get('/aahar/ngo-food-requests/active');
+      setActiveRequests(res.data?.requests || []);
+    } catch (err) {
+      console.log('Error fetching active food requests for notifications', err);
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      await Promise.resolve();
+      if (!active) return;
+      if (user && (!hasNgo || isAdmin)) {
+        try {
+          const res = await api.get('/aahar/ngo-food-requests/active');
+          if (active) {
+            setActiveRequests(res.data?.requests || []);
+          }
+        } catch (err) {
+          console.log('Error fetching active food requests for notifications', err);
+        }
+      } else {
+        if (active) {
+          setActiveRequests([]);
+        }
+      }
+    };
+    load();
+    return () => { active = false; };
+  }, [user, hasNgo, isAdmin]);
+
+  const toggleNoti = () => {
+    if (!notiOpen) {
+      fetchActiveRequests();
+    }
+    setNotiOpen(!notiOpen);
+  };
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setDropdownOpen(false);
+      }
+      if (notiRef.current && !notiRef.current.contains(e.target)) {
+        setNotiOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -72,6 +125,7 @@ export default function Navbar() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMenuOpen(false);
     setDropdownOpen(false);
+    setNotiOpen(false);
   }, [location.pathname]);
 
   const handleLogout = async () => {
@@ -158,6 +212,68 @@ export default function Navbar() {
             >
               {theme === 'dark' ? '☀️' : '🌙'}
             </button>
+
+            {user && (!hasNgo || isAdmin) && (
+              <div className="navbar__noti" ref={notiRef} style={{ marginRight: 12 }}>
+                <button
+                  className="navbar__noti-btn"
+                  onClick={toggleNoti}
+                  title="Active food needs"
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-orange)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
+                >
+                  🔔
+                  {activeRequests.length > 0 && (
+                    <span className="navbar__noti-badge">{activeRequests.length}</span>
+                  )}
+                </button>
+                {notiOpen && (
+                  <div className="navbar__noti-dropdown">
+                    <div className="navbar__noti-header">
+                      <span className="navbar__noti-title">📢 Active Food Needs</span>
+                      <span className="navbar__noti-count">{activeRequests.length}</span>
+                    </div>
+                    <div className="navbar__noti-list">
+                      {activeRequests.length === 0 ? (
+                        <div className="navbar__noti-empty">
+                          No active requests at the moment.
+                        </div>
+                      ) : (
+                        activeRequests.map((req) => (
+                          <div key={req._id} className="navbar__noti-item">
+                            <div className="navbar__noti-ngo">{req.ngoId?.ngoName}</div>
+                            <div className="navbar__noti-location">📍 {req.ngoId?.ngoCity}, {req.ngoId?.ngoState}</div>
+                            <div className="navbar__noti-tags">
+                              {(req.foodItemsNeeded || []).slice(0, 3).map((item, i) => (
+                                <span key={i} className="navbar__noti-tag">
+                                  {item.foodName} ({item.quantity}{item.quantityType})
+                                </span>
+                              ))}
+                              {(req.foodItemsNeeded || []).length > 3 && (
+                                <span className="navbar__noti-tag" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' }}>
+                                  +{req.foodItemsNeeded.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                            <div className="navbar__noti-action">
+                              <button
+                                className="navbar__noti-btn-fulfill"
+                                onClick={() => {
+                                  setNotiOpen(false);
+                                  navigate('/dashboard', { state: { fulfillRequestId: req._id } });
+                                }}
+                              >
+                                🤝 Fulfill
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {user ? (
               <div className="navbar__user" ref={dropdownRef}>
