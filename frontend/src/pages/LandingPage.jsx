@@ -406,6 +406,47 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ─── ENCOURAGEMENT BANNER ─── */}
+      <section style={{ padding: '60px 0', background: 'linear-gradient(135deg, rgba(249,115,22,0.08) 0%, rgba(168,85,247,0.08) 100%)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', position: 'relative' }}>
+        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 40, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 500px' }}>
+            <div className="section-tag" style={{ background: 'rgba(249,115,22,0.12)', color: 'var(--color-orange)', marginBottom: 16 }}>🌱 Double the Goodness</div>
+            <h2 style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1.3, marginBottom: 16, color: 'var(--text-primary)' }}>
+              Feed a Soul, <span className="gradient-text">Empower Your Savings</span>
+            </h2>
+            <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
+              Donating excess food isn't just about reducing waste—it's about bringing hope to families, children, and individuals who struggle for a single daily meal. Aahaar makes your kindness mutually beneficial: support verified NGOs to serve hot meals, while instantly receiving an itemized 80G tax certificate to claim exemption benefits on your tax filings.
+            </p>
+            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginTop: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '1.25rem' }}>🍲</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Zero Food Waste</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '1.25rem' }}>📈</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Instant 80G Certificate</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '1.25rem' }}>🏢</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Tax-deductible Claims</span>
+              </div>
+            </div>
+          </div>
+          <div style={{ flex: '1 1 300px', display: 'flex', justifyContent: 'center' }}>
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-xl)', padding: 32, textAlign: 'center', maxWidth: 360, width: '100%', boxShadow: 'var(--shadow-lg)', backdropFilter: 'blur(10px)' }}>
+              <div style={{ fontSize: '3rem', marginBottom: 12 }}>🛡️</div>
+              <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 8, color: 'var(--text-primary)' }}>100% Tax Compliant</h4>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
+                Every single donation is timestamped, audited, and matched with registered NGO receipts to guarantee full compliance for tax exemption filings.
+              </p>
+              <Link to="/register" className="btn-primary" style={{ display: 'inline-block', width: '100%', padding: '12px 0', border: 'none', color: '#fff', fontSize: '0.88rem', textDecoration: 'none', textAlign: 'center' }}>
+                Start Your Journey 🌟
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ─── FAQ ─── */}
       <section style={{ padding: '80px 0' }}>
         <div className="container" style={{ maxWidth: 760 }}>
