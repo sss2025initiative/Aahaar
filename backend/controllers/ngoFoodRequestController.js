@@ -231,7 +231,7 @@ const fulfillMyNgoFoodRequest = asyncHandler(async (req, res) => {
 });
 
 const getActiveNgoFoodRequests = asyncHandler(async (req, res) => {
-  const requests = await NgoFoodRequest.find({ status: "approved", acceptedBy: null })
+  const requests = await NgoFoodRequest.find({ status: { $in: ["approved", "pending"] }, acceptedBy: null })
     .sort({ createdAt: -1 })
     .populate("ngoId", "ngoName ngoCity ngoState ngoPurpose ngoPhone ngoEmail");
 
@@ -256,9 +256,13 @@ const acceptNgoFoodRequest = asyncHandler(async (req, res) => {
     throw new Error("Food request not found.");
   }
 
-  if (request.status !== "approved") {
+  if (request.status !== "approved" && request.status !== "pending") {
     res.status(400);
-    throw new Error("Only approved requests can be accepted for donation.");
+    throw new Error("Only pending or approved requests can be accepted for donation.");
+  }
+
+  if (request.status === "pending") {
+    request.status = "approved";
   }
 
   if (request.acceptedBy) {
