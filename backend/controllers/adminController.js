@@ -325,7 +325,8 @@ const getAllNgoFoodRequests = asyncHandler(async (req, res) => {
     .populate('ngoId', 'ngoName ngoEmail ngoCity ngoState ngoPhone isApproved registeredBy')
     .populate('requestedBy', 'firstName surname email')
     .populate('approvedBy', 'firstName surname')
-    .populate('rejectedBy', 'firstName surname');
+    .populate('rejectedBy', 'firstName surname')
+    .populate('acceptedBy', 'firstName surname email phone');
   res.status(200).json({ requests, message: 'NGO food requests fetched successfully' });
 });
 

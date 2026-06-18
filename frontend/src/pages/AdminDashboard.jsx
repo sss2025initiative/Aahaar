@@ -1350,6 +1350,58 @@ export default function AdminDashboard() {
                         {req.fulfilledAt && <span style={{ color: '#a78bfa' }}>🚚 Fulfilled {new Date(req.fulfilledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>}
                       </div>
 
+                      {/* Fulfillment & Acceptor Details */}
+                      {req.acceptedBy && (
+                        <div style={{ 
+                          background: 'rgba(6, 182, 212, 0.04)', 
+                          border: '1px solid rgba(6, 182, 212, 0.15)', 
+                          borderRadius: 8, 
+                          padding: '12px 16px', 
+                          marginBottom: 14,
+                          fontSize: '0.82rem'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <span style={{ fontWeight: 700, color: 'var(--color-teal)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              🤝 Accepted by Donor
+                            </span>
+                            <span style={{ 
+                              padding: '2px 8px', 
+                              borderRadius: 4, 
+                              fontSize: '0.72rem', 
+                              fontWeight: 700, 
+                              textTransform: 'uppercase',
+                              background: req.status === 'fulfilled' ? 'rgba(34,197,94,0.12)' : 'rgba(234,179,8,0.12)',
+                              color: req.status === 'fulfilled' ? '#4ade80' : '#fbbf24'
+                            }}>
+                              {req.status === 'fulfilled' ? 'Done / Completed' : 'In Progress / Pending Delivery'}
+                            </span>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, color: 'var(--text-secondary)' }}>
+                            <div>
+                              <strong>Donor Name:</strong> {req.acceptedBy.firstName} {req.acceptedBy.surname}
+                            </div>
+                            <div>
+                              <strong>Email:</strong> {req.acceptedBy.email}
+                            </div>
+                            {req.acceptedBy.phone && (
+                              <div>
+                                <strong>Phone:</strong> {req.acceptedBy.phone}
+                              </div>
+                            )}
+                            {req.expectedDeliveryDate && (
+                              <div>
+                                <strong>Expected Delivery:</strong> {new Date(req.expectedDeliveryDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            )}
+                            {req.verificationToken && (
+                              <div>
+                                <strong>Verification Token:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 800, color: 'var(--color-orange)', letterSpacing: 0.5 }}>{req.verificationToken}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Rejection reason */}
                       {req.status === 'rejected' && req.rejectedReason && (
                         <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 8, border: '1px solid rgba(239,68,68,0.15)', fontSize: '0.82rem', color: '#f87171' }}>
