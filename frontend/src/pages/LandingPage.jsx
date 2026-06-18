@@ -155,7 +155,7 @@ export default function LandingPage() {
           </div>
 
           <div className="hero__trust">
-            {['✅ 100% Verified NGOs', '🔒 Secure Platform', '📊 Real-time Tracking', '🆓 Completely Free'].map((t, i) => (
+            {['✅ 100% Verified NGOs', '🔒 Secure Platform', '📊 Real-time Tracking', '💰 Tax Exemption (80G)', '🆓 Completely Free'].map((t, i) => (
               <span key={i}>{t}</span>
             ))}
           </div>
@@ -190,6 +190,118 @@ export default function LandingPage() {
                 </div>
               </React.Fragment>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── CORE PLATFORM CAPABILITIES ─── */}
+      <section className="core-offerings" style={{ padding: '80px 0', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)', width: '80%', height: '30%', background: 'radial-gradient(circle, rgba(249,115,22,0.04) 0%, transparent 60%)', filter: 'blur(40px)', pointerEvents: 'none' }} />
+        <div className="container">
+          <div className="section-header" style={{ marginBottom: 48 }}>
+            <div className="section-tag">🌟 Core Offerings</div>
+            <h2 className="section-title">One Platform,<br /><span className="gradient-text">Double the Value</span></h2>
+            <p className="section-subtitle">Aahaar simplifies surplus food management while optimizing tax benefits for your generosity.</p>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 32, marginTop: 20 }}>
+            {/* Card 1: Donate Food */}
+            <div className="glass-card" style={{ 
+              padding: '40px 32px', 
+              borderRadius: 'var(--radius-xl)', 
+              background: 'rgba(255, 255, 255, 0.02)', 
+              border: '1px solid var(--border-color)', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              justifyContent: 'space-between',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = 'rgba(249,115,22,0.3)';
+              e.currentTarget.style.boxShadow = '0 10px 40px rgba(249,115,22,0.06)';
+              e.currentTarget.style.transform = 'translateY(-4px)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'var(--border-color)';
+              e.currentTarget.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.1)';
+              e.currentTarget.style.transform = 'none';
+            }}>
+              <div>
+                <div style={{ width: 56, height: 56, borderRadius: '16px', background: 'rgba(249,115,22,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', marginBottom: 24, color: 'var(--color-orange)' }}>
+                  🍱
+                </div>
+                <h3 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: 14, color: 'var(--text-primary)' }}>
+                  Donate Surplus Food
+                </h3>
+                <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
+                  Instantly list excess food from restaurants, weddings, or household kitchens. Our location-smart routing matches you with approved local NGOs to prevent food waste.
+                </p>
+                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--color-orange)' }}>✓</span> 📸 Upload items with categorization tags
+                  </li>
+                  <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--color-orange)' }}>✓</span> 🔑 Unique QR & alphanumeric pickup tokens
+                  </li>
+                  <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--color-orange)' }}>✓</span> 📍 Direct coordination with verified NGOs
+                  </li>
+                </ul>
+              </div>
+              <Link to="/register" className="btn-primary" style={{ alignSelf: 'flex-start', padding: '12px 28px', fontSize: '0.875rem', border: 'none', color: '#fff' }}>
+                Start Donating 🚀
+              </Link>
+            </div>
+
+            {/* Card 2: Tax Benefit */}
+            <div className="glass-card" style={{ 
+              padding: '40px 32px', 
+              borderRadius: 'var(--radius-xl)', 
+              background: 'rgba(255, 255, 255, 0.02)', 
+              border: '1px solid var(--border-color)', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              justifyContent: 'space-between',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = 'rgba(6,182,212,0.3)';
+              e.currentTarget.style.boxShadow = '0 10px 40px rgba(6,182,212,0.06)';
+              e.currentTarget.style.transform = 'translateY(-4px)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'var(--border-color)';
+              e.currentTarget.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.1)';
+              e.currentTarget.style.transform = 'none';
+            }}>
+              <div>
+                <div style={{ width: 56, height: 56, borderRadius: '16px', background: 'rgba(6,182,212,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', marginBottom: 24, color: 'var(--color-teal)' }}>
+                  💰
+                </div>
+                <h3 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: 14, color: 'var(--text-primary)' }}>
+                  Claim Tax Benefits (80G)
+                </h3>
+                <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
+                  Turn your social responsibility into savings. Every verified donation automatically calculates tax exemption amounts based on item types (up to 40%) and issues 80G-ready tax certificates.
+                </p>
+                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--color-teal)' }}>✓</span> 📊 Automated category valuation index
+                  </li>
+                  <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--color-teal)' }}>✓</span> 📥 Instant PDF certificate generation
+                  </li>
+                  <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--color-teal)' }}>✓</span> 🏢 Compliance documents for audits & filing
+                  </li>
+                </ul>
+              </div>
+              <Link to="/register" className="btn-secondary" style={{ alignSelf: 'flex-start', padding: '11px 26px', fontSize: '0.875rem' }}>
+                Calculate Exemption →
+              </Link>
+            </div>
           </div>
         </div>
       </section>
