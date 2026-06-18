@@ -426,6 +426,34 @@ export default function NgoDashboard() {
 
       {/* Main Content */}
       <main className="dashboard-main">
+        {/* Mobile Tab Navigation */}
+        <div className="dashboard-mobile-nav">
+          <button 
+            className={`dashboard-mobile-nav-item ${tab === 'overview' ? 'dashboard-mobile-nav-item--active' : ''}`}
+            onClick={() => setTab('overview')}
+          >
+            📊 Overview
+          </button>
+          <button 
+            className={`dashboard-mobile-nav-item ${tab === 'request' ? 'dashboard-mobile-nav-item--active' : ''}`}
+            onClick={() => setTab('request')}
+          >
+            🍱 Request Food
+          </button>
+          <button 
+            className={`dashboard-mobile-nav-item ${tab === 'history' ? 'dashboard-mobile-nav-item--active' : ''}`}
+            onClick={() => setTab('history')}
+          >
+            📜 History
+          </button>
+          <button 
+            className="dashboard-mobile-nav-item"
+            onClick={logout}
+            style={{ color: 'var(--color-red)', border: '1px solid rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.05)' }}
+          >
+            🚪 Logout
+          </button>
+        </div>
         {/* Header */}
         <div className="dashboard-header">
           <div>

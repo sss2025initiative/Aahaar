@@ -805,8 +805,26 @@ export default function AdminDashboard() {
         </button>
       </aside>
 
-      {/* Main */}
       <main className="dashboard-main">
+        {/* Mobile Tab Navigation */}
+        <div className="dashboard-mobile-nav">
+          {TABS.map(t => (
+            <button 
+              key={t.id} 
+              className={`dashboard-mobile-nav-item ${tab === t.id ? 'dashboard-mobile-nav-item--active' : ''}`}
+              onClick={() => handleTabChange(t.id)}
+            >
+              {t.icon} {t.label}
+            </button>
+          ))}
+          <button 
+            className="dashboard-mobile-nav-item"
+            onClick={handleLogout}
+            style={{ color: 'var(--color-red)', border: '1px solid rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.05)' }}
+          >
+            🚪 Logout
+          </button>
+        </div>
         <div className="dashboard-header">
           <div>
             <div className="breadcrumb"><span>⚡</span><span>/</span><span>{TABS.find(t => t.id === tab)?.label}</span></div>

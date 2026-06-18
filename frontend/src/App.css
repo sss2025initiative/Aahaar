@@ -1170,3 +1170,46 @@ body.light-theme .navbar__noti-item:hover {
   background: rgba(15, 23, 42, 0.02) !important;
 }
 
+
+/* Dashboard Mobile Navigation */
+.dashboard-mobile-nav {
+  display: none;
+  overflow-x: auto;
+  white-space: nowrap;
+  gap: 8px;
+  padding: 8px 16px;
+  margin: -10px -20px 20px -20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  -webkit-overflow-scrolling: touch;
+  position: sticky;
+  top: var(--navbar-h);
+  z-index: 100;
+}
+.dashboard-mobile-nav::-webkit-scrollbar {
+  display: none;
+}
+.dashboard-mobile-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-fast);
+}
+.dashboard-mobile-nav-item--active {
+  color: var(--color-orange);
+  background: rgba(249, 115, 22, 0.1);
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+@media (max-width: 768px) {
+  .dashboard-mobile-nav {
+    display: flex;
+  }
+}
