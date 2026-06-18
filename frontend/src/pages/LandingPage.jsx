@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import { showToast } from '../components/Toast';
 
 const FOOD_PARTICLES = ['🍎', '🥗', '🍞', '🥛', '🍱', '🥕', '🍇', '🌾', '🥦', '🍊', '🫙', '🍚', '🧅', '🥑', '🍋'];
 
@@ -102,6 +103,45 @@ export default function LandingPage() {
   const [stats, setStats] = useState(null);
   const [activeRequests, setActiveRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
+
+  const [selectedRequestDetails, setSelectedRequestDetails] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [expectedDate, setExpectedDate] = useState('');
+  const [accepting, setAccepting] = useState(false);
+  const [acceptedRequestPass, setAcceptedRequestPass] = useState(null);
+
+  const closeModal = () => {
+    setSelectedRequestDetails(null);
+    setShowDatePicker(false);
+    setExpectedDate('');
+    setAcceptedRequestPass(null);
+  };
+
+  const handleAcceptRequestInline = async (e) => {
+    e.preventDefault();
+    if (!expectedDate) {
+      showToast('Please specify expected delivery date and time', 'error');
+      return;
+    }
+    setAccepting(true);
+    try {
+      const res = await api.put(`/aahar/ngo-food-requests/${selectedRequestDetails._id}/accept`, { expectedDeliveryDate: expectedDate });
+      showToast('You have accepted this food request! Verification token generated.', 'success');
+      setAcceptedRequestPass(res.data?.request);
+      setExpectedDate('');
+      // Reload active requests list
+      api.get('/aahar/ngo-food-requests/active')
+        .then(res => {
+          const list = res.data?.requests || [];
+          const donorId = user?._id || user?.id;
+          setActiveRequests(list.filter(r => r.requestedBy !== donorId && r.requestedBy?._id !== donorId));
+        });
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to accept request', 'error');
+    } finally {
+      setAccepting(false);
+    }
+  };
 
   useEffect(() => {
     api.get('/aahar/stats/getStats')
@@ -317,7 +357,7 @@ export default function LandingPage() {
                     <button
                       onClick={() => {
                         if (user) {
-                          navigate('/dashboard', { state: { fulfillRequestId: req._id } });
+                          setSelectedRequestDetails(req);
                         } else {
                           navigate('/login', { state: { from: { pathname: '/dashboard' }, fulfillRequestId: req._id } });
                         }
@@ -669,6 +709,163 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Detailed Food Request Modal */}
+      {selectedRequestDetails && (
+        <div className="modal-overlay" onClick={closeModal} style={{ zIndex: 1100 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 500, padding: 28, background: 'rgba(17,24,39,0.95)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
+            <h3 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '1.3rem', fontWeight: 800 }}>
+              🏥 Food Request Details
+            </h3>
+            
+            {acceptedRequestPass ? (
+              /* Success delivery pass view inline */
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginTop: 16 }}>
+                <div style={{ fontSize: '3rem', marginBottom: 10 }}>🎫</div>
+                <h4 style={{ fontWeight: 800, fontSize: '1.15rem', marginBottom: 4, color: 'var(--color-teal)' }}>Fulfillment Confirmed!</h4>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
+                  Show this QR code or share the 6-character token with the NGO representative at the time of delivery to verify.
+                </p>
+
+                {/* QR Code */}
+                <div style={{ 
+                  background: '#ffffff', 
+                  padding: 12, 
+                  borderRadius: 10, 
+                  width: 154, 
+                  height: 154, 
+                  margin: '0 auto 16px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(JSON.stringify({ type: 'request', id: acceptedRequestPass._id, token: acceptedRequestPass.verificationToken }))}`}
+                    alt="Delivery QR Pass"
+                    style={{ width: 130, height: 130 }}
+                  />
+                </div>
+
+                {/* Token */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 2 }}>
+                    Verification Token
+                  </div>
+                  <div style={{ 
+                    fontFamily: 'monospace', 
+                    fontSize: '1.35rem', 
+                    fontWeight: 800, 
+                    color: 'var(--color-orange)', 
+                    background: 'rgba(255,255,255,0.03)', 
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 6,
+                    padding: '6px 12px',
+                    display: 'inline-block',
+                    letterSpacing: 2
+                  }}>
+                    {acceptedRequestPass.verificationToken}
+                  </div>
+                </div>
+
+                <div className="modal__actions" style={{ width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: 14, justifyContent: 'center' }}>
+                  <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '10px 0', border: 'none', color: '#fff' }} onClick={closeModal}>Done</button>
+                </div>
+              </div>
+            ) : showDatePicker ? (
+              /* Inline date picker view */
+              <form onSubmit={handleAcceptRequestInline} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16 }}>
+                <div className="form-group" style={{ textAlign: 'left' }}>
+                  <label className="form-label" style={{ color: 'var(--text-secondary)' }}>Expected Delivery Date & Time *</label>
+                  <input 
+                    type="datetime-local"
+                    className="form-input"
+                    value={expectedDate}
+                    onChange={(e) => setExpectedDate(e.target.value)}
+                    required
+                    min={new Date().toISOString().slice(0, 16)}
+                    style={{ color: 'var(--text-primary)' }}
+                  />
+                </div>
+
+                <div className="modal__actions" style={{ borderTop: '1px solid var(--border-color)', paddingTop: 14, justifyContent: 'flex-end', gap: 10 }}>
+                  <button type="button" className="btn-ghost" onClick={() => setShowDatePicker(false)} disabled={accepting}>Back</button>
+                  <button type="submit" className="btn-primary" style={{ border: 'none', color: '#fff', padding: '10px 20px' }} disabled={accepting}>
+                    {accepting ? 'Confirming...' : 'Confirm Fulfillment'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              /* Request Details view */
+              <>
+                <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 14, fontSize: '0.9rem', textAlign: 'left' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: 14, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 2 }}>NGO Name</div>
+                    <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{selectedRequestDetails.ngoId?.ngoName || '—'}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                      📍 {selectedRequestDetails.ngoId?.ngoCity}, {selectedRequestDetails.ngoId?.ngoState}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>Food Items Needed</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {(selectedRequestDetails.foodItemsNeeded || []).map((item, i) => (
+                        <span key={i} className="navbar__noti-tag" style={{ background: 'rgba(249,115,22,0.08)', color: 'var(--color-orange)', fontSize: '0.82rem', padding: '4px 10px', border: '1px solid rgba(249,115,22,0.12)' }}>
+                          {item.foodName} · {item.quantity}{item.quantityType} ({item.category})
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Urgency Level</div>
+                      <span style={{ 
+                        fontWeight: 700, 
+                        color: selectedRequestDetails.urgencyLevel === 'critical' ? '#f87171' : selectedRequestDetails.urgencyLevel === 'high' ? '#fb923c' : '#fbbf24',
+                        fontSize: '0.85rem'
+                      }}>
+                        {selectedRequestDetails.urgencyLevel?.toUpperCase()}
+                      </span>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Beneficiaries</div>
+                      <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{selectedRequestDetails.numberOfBeneficiaries || 0} people</span>
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 2 }}>Purpose</div>
+                    <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: 1.4, fontSize: '0.85rem' }}>{selectedRequestDetails.purpose}</p>
+                  </div>
+
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4 }}>Contact & Delivery Details</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      <div>👤 {selectedRequestDetails.contactDetails?.contactPersonName}</div>
+                      <div>📞 {selectedRequestDetails.contactDetails?.phoneNumber}</div>
+                      <div>✉️ {selectedRequestDetails.contactDetails?.email}</div>
+                      <div style={{ marginTop: 4 }}>🚚 <strong>Delivery Address:</strong> {selectedRequestDetails.contactDetails?.deliveryAddress}, {selectedRequestDetails.contactDetails?.city}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="modal__actions" style={{ marginTop: 24, borderTop: '1px solid var(--border-color)', paddingTop: 16, justifyContent: 'flex-end', gap: 10 }}>
+                  <button className="btn-ghost" onClick={closeModal}>Close</button>
+                  <button 
+                    className="btn-primary" 
+                    style={{ border: 'none', color: '#fff', padding: '10px 20px' }}
+                    onClick={() => setShowDatePicker(true)}
+                  >
+                    🤝 Fulfill Request
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
