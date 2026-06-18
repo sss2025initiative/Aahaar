@@ -35,7 +35,7 @@ export default function LoginPage() {
     const result = await login(form.email.trim().toLowerCase(), form.password);
     if (result.success) {
       showToast(`Welcome back, ${result.user.firstName}! 🎉`, 'success');
-      navigate(result.user.isAdmin ? '/admin' : from, { replace: true });
+      navigate(result.user.isAdmin ? '/admin' : from, { replace: true, state: location.state });
     } else {
       showToast(result.error || 'Login failed', 'error');
       setErrors({ submit: result.error });

@@ -132,11 +132,15 @@ export default function DonorDashboard() {
     }
     setAccepting(true);
     try {
-      await api.put(`/aahar/ngo-food-requests/${acceptModal._id}/accept`, { expectedDeliveryDate: expectedDate });
+      const res = await api.put(`/aahar/ngo-food-requests/${acceptModal._id}/accept`, { expectedDeliveryDate: expectedDate });
       showToast('You have accepted this food request! Verification token generated.', 'success');
       setAcceptModal(null);
       setExpectedDate('');
       fetchData();
+      if (res.data?.request) {
+        setPassType('request');
+        setViewPass(res.data.request);
+      }
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to accept request', 'error');
     } finally {

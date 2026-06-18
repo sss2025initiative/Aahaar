@@ -284,6 +284,7 @@ const acceptNgoFoodRequest = asyncHandler(async (req, res) => {
   request.expectedDeliveryDate = new Date(expectedDeliveryDate);
   request.verificationToken = token;
   await request.save();
+  await request.populate("ngoId", "ngoName ngoCity ngoState ngoPhone ngoEmail");
 
   res.status(200).json({
     message: "Food request accepted! Thank you for your donation.",

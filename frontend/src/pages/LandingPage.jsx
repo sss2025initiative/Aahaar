@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const FOOD_PARTICLES = ['🍎', '🥗', '🍞', '🥛', '🍱', '🥕', '🍇', '🌾', '🥦', '🍊', '🫙', '🍚', '🧅', '🥑', '🍋'];
 
@@ -96,12 +97,25 @@ function FaqItem({ q, a }) {
 }
 
 export default function LandingPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const [activeRequests, setActiveRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
 
   useEffect(() => {
     api.get('/aahar/stats/getStats')
       .then(res => setStats(res.data?.data || res.data))
       .catch(() => {});
+
+    api.get('/aahar/ngo-food-requests/active')
+      .then(res => {
+        const list = res.data?.requests || [];
+        const donorId = user?._id || user?.id;
+        setActiveRequests(list.filter(r => r.requestedBy !== donorId && r.requestedBy?._id !== donorId));
+      })
+      .catch(err => console.error('Error fetching active requests:', err))
+      .finally(() => setLoadingRequests(false));
   }, []);
 
   const totalDonations = stats?.totalDonations || 1280;
@@ -191,6 +205,133 @@ export default function LandingPage() {
               </React.Fragment>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ─── ACTIVE COMMUNITY FOOD NEEDS ─── */}
+      <section className="active-needs" style={{ padding: '80px 0', borderBottom: '1px solid var(--border-color)', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)', width: '80%', height: '30%', background: 'radial-gradient(circle, rgba(249,115,22,0.03) 0%, transparent 60%)', filter: 'blur(40px)', pointerEvents: 'none' }} />
+        <div className="container">
+          <div className="section-header" style={{ marginBottom: 40 }}>
+            <div className="section-tag" style={{ background: 'rgba(249,115,22,0.1)', color: 'var(--color-orange)' }}>🏥 Urgent Needs</div>
+            <h2 className="section-title">Active NGO <span className="gradient-text">Food Requests</span></h2>
+            <p className="section-subtitle">Real-time requests from verified NGOs. Help fulfill these needs directly.</p>
+          </div>
+
+          {loadingRequests ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
+              {[1, 2, 3].map(i => (
+                <div key={i} className="skeleton" style={{ height: 200, borderRadius: 'var(--radius-lg)' }} />
+              ))}
+            </div>
+          ) : activeRequests.length === 0 ? (
+            <div style={{
+              textAlign: 'center',
+              padding: '48px 32px',
+              background: 'rgba(255, 255, 255, 0.01)',
+              border: '1px dashed var(--border-color)',
+              borderRadius: 'var(--radius-xl)',
+              color: 'var(--text-secondary)'
+            }}>
+              <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: 12 }}>🌟</span>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: 8, color: 'var(--text-primary)' }}>All Needs Fulfilled!</h3>
+              <p style={{ fontSize: '0.88rem', maxWidth: 440, margin: '0 auto', lineHeight: 1.6 }}>
+                All active food requests in our network are currently claimed or fulfilled. You can still list your surplus food to connect with local NGOs.
+              </p>
+              <Link to="/register" className="btn-primary" style={{ display: 'inline-flex', marginTop: 20, padding: '10px 24px', fontSize: '0.85rem' }}>
+                List Surplus Food 🍱
+              </Link>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 24 }}>
+              {activeRequests.map((req) => {
+                const isCritical = req.urgencyLevel === 'critical';
+                const isHigh = req.urgencyLevel === 'high';
+                const badgeColor = isCritical ? '#f87171' : isHigh ? '#fb923c' : '#fbbf24';
+                const badgeBg = isCritical ? 'rgba(239,68,68,0.1)' : isHigh ? 'rgba(249,115,22,0.1)' : 'rgba(234,179,8,0.1)';
+
+                return (
+                  <div key={req._id} className="glass-card" style={{
+                    padding: 24,
+                    borderRadius: 'var(--radius-xl)',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.3s ease',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'rgba(249,115,22,0.25)';
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                    e.currentTarget.style.transform = 'none';
+                  }}>
+                    <div>
+                      {/* Card Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                        <div>
+                          <h4 style={{ fontWeight: 800, fontSize: '1.1rem', marginBottom: 4 }}>{req.ngoId?.ngoName}</h4>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>📍 {req.ngoId?.ngoCity}, {req.ngoId?.ngoState}</span>
+                        </div>
+                        <span style={{
+                          padding: '3px 10px',
+                          borderRadius: 99,
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          color: badgeColor,
+                          background: badgeBg,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em'
+                        }}>
+                          {req.urgencyLevel}
+                        </span>
+                      </div>
+
+                      {/* Items needed list */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                        {(req.foodItemsNeeded || []).map((item, i) => (
+                          <span key={i} style={{
+                            padding: '4px 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.78rem',
+                            fontWeight: 600,
+                            background: 'rgba(249,115,22,0.06)',
+                            color: 'var(--color-orange)',
+                            border: '1px solid rgba(249,115,22,0.12)'
+                          }}>
+                            {item.foodName} · {item.quantity}{item.quantityType}
+                          </span>
+                        ))}
+                      </div>
+
+                      <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
+                        <strong>Purpose:</strong> {req.purpose}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        if (user) {
+                          navigate('/dashboard', { state: { fulfillRequestId: req._id } });
+                        } else {
+                          navigate('/login', { state: { from: { pathname: '/dashboard' }, fulfillRequestId: req._id } });
+                        }
+                      }}
+                      className="btn-primary"
+                      style={{ width: '100%', justifyContent: 'center', padding: '10px', fontSize: '0.85rem' }}
+                    >
+                      🤝 Fulfill Need
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 

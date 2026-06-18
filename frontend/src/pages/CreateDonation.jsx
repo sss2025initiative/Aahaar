@@ -33,6 +33,7 @@ export default function CreateDonation() {
   
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [successDonation, setSuccessDonation] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -119,9 +120,13 @@ export default function CreateDonation() {
         ...contact,
         ngoPreference,
       };
-      await api.post('/aahar/foodInfo/createFoodInfo', payload);
+      const res = await api.post('/aahar/foodInfo/createFoodInfo', payload);
       showToast('Donation submitted successfully! 🎉', 'success');
-      navigate('/dashboard');
+      if (res.data?.foodInfo) {
+        setSuccessDonation(res.data.foodInfo);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       showToast(err.response?.data?.message || 'Submission failed. Please try again.', 'error');
     } finally {
@@ -131,6 +136,102 @@ export default function CreateDonation() {
 
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
   const minDate = tomorrow.toISOString().split('T')[0];
+
+  if (successDonation) {
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(JSON.stringify({ type: 'donation', id: successDonation._id, token: successDonation.verificationToken }))}`;
+    const targetNgoName = successDonation.ngoPreference === 'random' 
+      ? 'Directly Donate (Auto-assign)' 
+      : cityNgos.find(n => n._id === successDonation.ngoPreference)?.ngoName || 'Selected NGO';
+
+    return (
+      <div className="create-donation-page">
+        <div className="create-donation-header">
+          <div className="container">
+            <h1 style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: 8, marginBottom: 6 }}>
+              Donation <span className="gradient-text">Submitted!</span> 🎉
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+              Your pickup pass has been generated. Please save this screen or take note of the token.
+            </p>
+          </div>
+        </div>
+
+        <div className="create-donation-body" style={{ display: 'flex', justifyContent: 'center', padding: '40px 24px' }}>
+          <div className="glass-card" style={{ maxWidth: 500, width: '100%', padding: '40px 32px', textAlign: 'center', border: '1px solid rgba(249,115,22,0.15)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ fontSize: '4rem', marginBottom: 16 }}>🍱</div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: 8 }}>Thank You for Donating!</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 24, lineHeight: 1.5 }}>
+              Your food donation is pending admin approval. Once approved, the pickup will be scheduled.
+            </p>
+
+            {/* QR Code Container */}
+            <div style={{
+              background: '#ffffff',
+              padding: 16,
+              borderRadius: 12,
+              width: 182,
+              height: 182,
+              marginBottom: 16,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <img src={qrUrl} alt="Donation QR Pass" style={{ width: 150, height: 150 }} />
+            </div>
+
+            {/* Token Code */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+                Verification Passcode
+              </div>
+              <div style={{
+                fontFamily: 'monospace',
+                fontSize: '1.6rem',
+                fontWeight: 800,
+                color: 'var(--color-orange)',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 8,
+                padding: '8px 16px',
+                display: 'inline-block',
+                letterSpacing: 3
+              }}>
+                {successDonation.verificationToken}
+              </div>
+            </div>
+
+            {/* Verification Info Box */}
+            <div style={{
+              padding: '14px 16px',
+              background: 'rgba(249,115,22,0.08)',
+              borderRadius: 10,
+              border: '1px solid rgba(249,115,22,0.15)',
+              fontSize: '0.85rem',
+              color: 'var(--color-orange)',
+              textAlign: 'left',
+              width: '100%',
+              marginBottom: 28,
+              lineHeight: 1.5
+            }}>
+              <strong>🛡️ Verification Rules:</strong>
+              <div style={{ marginTop: 6 }}>
+                {successDonation.ngoPreference === 'random' ? (
+                  <span>This is a <strong>General Donation</strong>. Verification is handled exclusively by the <strong>Admin</strong> or approved delivery partners.</span>
+                ) : (
+                  <span>This is assigned to NGO: <strong>{targetNgoName}</strong>. Verification must be completed by representatives of that designated NGO or the Admin.</span>
+                )}
+              </div>
+            </div>
+
+            <button onClick={() => navigate('/dashboard')} className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: '0.95rem' }}>
+              Go to Dashboard →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!user?.isVerified) {
     return (
