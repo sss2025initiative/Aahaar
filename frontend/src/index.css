@@ -40,6 +40,7 @@
   --border-color:     rgba(255,255,255,0.07);
   --border-accent:    rgba(249,115,22,0.3);
   --border-teal:      rgba(6,182,212,0.3);
+  --chart-col-hover-bg: rgba(255, 255, 255, 0.04);
 
   /* Glass */
   --glass-bg:         rgba(17, 24, 39, 0.8);
@@ -69,6 +70,33 @@
   --transition-fast:  0.15s ease;
   --transition-base:  0.25s ease;
   --transition-slow:  0.4s ease;
+}
+
+/* Light Theme Variables */
+body.light-theme {
+  --bg-primary:       #f8fafc;
+  --bg-secondary:     #f1f5f9;
+  --bg-card:          #ffffff;
+  --bg-card-alt:      #f8fafc;
+  --bg-sidebar:       #ffffff;
+
+  --text-primary:     #0f172a;
+  --text-secondary:   #475569;
+  --text-muted:       #94a3b8;
+
+  --border-color:     rgba(15, 23, 42, 0.08);
+  --border-accent:    rgba(249, 115, 22, 0.35);
+  --border-teal:      rgba(6, 182, 212, 0.35);
+  --chart-col-hover-bg: rgba(15, 23, 42, 0.04);
+
+  --glass-bg:         rgba(255, 255, 255, 0.85);
+  --glass-border:     rgba(15, 23, 42, 0.08);
+  --glass-shadow:     0 8px 32px rgba(15, 23, 42, 0.08);
+
+  --grad-bg:          linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f8fafc 100%);
+  --grad-hero:        radial-gradient(ellipse 80% 60% at 50% -20%, rgba(249,115,22,0.08), transparent),
+                      radial-gradient(ellipse 60% 40% at 80% 50%, rgba(6,182,212,0.05), transparent),
+                      linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
 /* Reset & Base */
@@ -456,4 +484,106 @@ select.form-input option {
 @keyframes counter-up {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   AAHAAR — Light Theme Polish
+   ============================================================ */
+
+/* Light Mode Overrides for Card Backgrounds and Borders */
+body.light-theme .glass-card,
+body.light-theme .form-card,
+body.light-theme .dash-stat-card,
+body.light-theme .dashboard-section,
+body.light-theme .donation-card,
+body.light-theme .ngo-admin-card,
+body.light-theme .admin-quick-card,
+body.light-theme .auth-card,
+body.light-theme .step-card,
+body.light-theme .testimonial-card,
+body.light-theme .impact__grid,
+body.light-theme .modal {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04) !important;
+}
+
+body.light-theme .navbar--scrolled {
+  background: rgba(248, 250, 252, 0.92) !important;
+  border-bottom-color: rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.04) !important;
+}
+
+body.light-theme .navbar__dropdown {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08) !important;
+}
+
+body.light-theme .navbar__mobile {
+  background: #ffffff !important;
+  border-bottom-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+body.light-theme .navbar__link:hover,
+body.light-theme .navbar__dropdown-item:hover,
+body.light-theme .navbar__mobile-link:hover {
+  background: rgba(15, 23, 42, 0.04) !important;
+}
+
+body.light-theme .navbar__user-btn {
+  background: rgba(15, 23, 42, 0.04) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+body.light-theme .navbar__user-btn:hover {
+  background: rgba(15, 23, 42, 0.08) !important;
+}
+
+body.light-theme .form-input,
+body.light-theme select.form-input,
+body.light-theme textarea.form-input {
+  background: rgba(15, 23, 42, 0.03) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  color: #0f172a !important;
+}
+
+body.light-theme .form-input:focus,
+body.light-theme select.form-input:focus,
+body.light-theme textarea.form-input:focus {
+  background: rgba(249, 115, 22, 0.02) !important;
+  border-color: var(--color-orange) !important;
+}
+
+body.light-theme .admin-table thead {
+  background: rgba(15, 23, 42, 0.02) !important;
+}
+
+body.light-theme .admin-table td {
+  border-bottom-color: rgba(15, 23, 42, 0.05) !important;
+}
+
+body.light-theme .admin-table tbody tr:hover {
+  background: rgba(15, 23, 42, 0.015) !important;
+}
+
+body.light-theme .skeleton {
+  background: linear-gradient(90deg,
+    rgba(15, 23, 42, 0.04) 25%,
+    rgba(15, 23, 42, 0.08) 50%,
+    rgba(15, 23, 42, 0.04) 75
+  ) !important;
+  background-size: 200% 100% !important;
+}
+
+body.light-theme ::placeholder {
+  color: #94a3b8 !important;
+}
+
+body.light-theme .empty-state {
+  background: transparent !important;
+}
+
+body.light-theme .modal-overlay {
+  background: rgba(15, 23, 42, 0.4) !important;
 }

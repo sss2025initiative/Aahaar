@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 
 import Navbar from './components/Navbar';
 import Toast from './components/Toast';
+import Chatbot from './components/Chatbot';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 
@@ -69,6 +70,7 @@ function AppRoutes() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toast />
+      <Chatbot />
     </>
   );
 }

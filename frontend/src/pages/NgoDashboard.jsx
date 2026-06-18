@@ -23,7 +23,7 @@ function RequestStatusBadge({ status }) {
     pending: { bg: 'rgba(234,179,8,0.15)', color: '#fbbf24', icon: '⏳', label: 'Pending Review' },
     approved: { bg: 'rgba(34,197,94,0.15)', color: '#4ade80', icon: '✅', label: 'Approved' },
     rejected: { bg: 'rgba(239,68,68,0.15)', color: '#f87171', icon: '❌', label: 'Rejected' },
-    fulfilled: { bg: 'rgba(139,92,246,0.15)', color: '#a78bfa', icon: '🚚', label: 'Fulfilled' },
+    fulfilled: { bg: 'rgba(139,92,246,0.15)', color: '#a78bfa', icon: '🚚', label: 'Completed' },
   };
   const s = map[status] || map.pending;
   return (
@@ -130,6 +130,7 @@ export default function NgoDashboard() {
     numberOfBeneficiaries: '',
   });
 
+  // Used for manual refreshes (refresh button, post-submit reload)
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -143,9 +144,25 @@ export default function NgoDashboard() {
     }
   }, []);
 
+  // Initial load — inlined to satisfy React Compiler (no external setState call in effect body)
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    let active = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await api.get('/aahar/ngo-food-requests/my-requests');
+        if (active) {
+          setNgo(res.data?.ngo || null);
+          setRequests(res.data?.requests || []);
+        }
+      } catch {
+        if (active) showToast('Could not load NGO data', 'error');
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; }; // cleanup: ignore stale responses
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -213,6 +230,16 @@ export default function NgoDashboard() {
     }
   };
 
+  const handleFulfillRequest = async (id) => {
+    try {
+      await api.put(`/aahar/ngo-food-requests/${id}/fulfill`);
+      showToast('Food request marked as Completed ✅', 'success');
+      fetchData();
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to complete request', 'error');
+    }
+  };
+
   const filteredRequests = statusFilter === 'all'
     ? requests
     : requests.filter(r => r.status === statusFilter);
@@ -223,7 +250,7 @@ export default function NgoDashboard() {
     { label: 'Total Requests', value: requests.length, icon: '📋', grad: 'var(--grad-primary)' },
     { label: 'Pending', value: requests.filter(r => r.status === 'pending').length, icon: '⏳', grad: 'linear-gradient(135deg,#eab308,#d97706)' },
     { label: 'Approved', value: requests.filter(r => r.status === 'approved').length, icon: '✅', grad: 'var(--grad-green)' },
-    { label: 'Fulfilled', value: requests.filter(r => r.status === 'fulfilled').length, icon: '🚚', grad: 'var(--grad-purple)' },
+    { label: 'Completed', value: requests.filter(r => r.status === 'fulfilled').length, icon: '🚚', grad: 'var(--grad-purple)' },
   ];
 
   return (
@@ -420,7 +447,7 @@ export default function NgoDashboard() {
                   <button className="btn-ghost" style={{ fontSize: '0.8rem' }} onClick={() => setTab('history')}>View All →</button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {requests.slice(0, 3).map((req, i) => (
+                  {requests.slice(0, 3).map((req) => (
                     <div key={req._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
                       <div>
                         <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>
@@ -604,7 +631,7 @@ export default function NgoDashboard() {
                   className={`filter-btn ${statusFilter === s ? 'filter-btn--active' : ''}`}
                   onClick={() => setStatusFilter(s)}
                 >
-                  {s === 'all' ? 'All' : s === 'fulfilled' ? 'Fulfilled' : s.charAt(0).toUpperCase() + s.slice(1)}
+                  {s === 'all' ? 'All' : s === 'fulfilled' ? 'Completed' : s.charAt(0).toUpperCase() + s.slice(1)}
                   {s !== 'all' && (
                     <span style={{ marginLeft: 6, background: 'rgba(255,255,255,0.08)', padding: '0 6px', borderRadius: 99, fontSize: '0.7rem' }}>
                       {requests.filter(r => r.status === s).length}
@@ -685,12 +712,30 @@ export default function NgoDashboard() {
                           <span style={{ color: '#4ade80' }}>✅ Approved {new Date(req.approvedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
                         )}
                         {req.fulfilledAt && (
-                          <span style={{ color: '#a78bfa' }}>🚚 Fulfilled {new Date(req.fulfilledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                          <span style={{ color: '#a78bfa' }}>🚚 Completed {new Date(req.fulfilledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
                         )}
                         {req.adminNotes && (
                           <span style={{ color: 'var(--color-teal)' }}>💬 {req.adminNotes}</span>
                         )}
                       </div>
+
+                      {/* Action buttons */}
+                      {req.status === 'approved' && (
+                        <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: 12 }}>
+                          <button
+                            className="btn-primary"
+                            style={{
+                              fontSize: '0.8rem',
+                              padding: '8px 18px',
+                              background: 'var(--grad-purple)',
+                              boxShadow: '0 0 12px rgba(168,85,247,0.2)'
+                            }}
+                            onClick={() => handleFulfillRequest(req._id)}
+                          >
+                            🚚 Mark as Completed
+                          </button>
+                        </div>
+                      )}
 
                       {/* Rejection reason */}
                       {req.status === 'rejected' && req.rejectedReason && (

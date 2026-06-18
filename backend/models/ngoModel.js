@@ -33,6 +33,14 @@ const ngoSchema = mongoose.Schema({
         type: String,
         required: true,
     },
+    registrationCertificateNumber: {
+        type: String,
+        required: false,
+    },
+    panCardNumber: {
+        type: String,
+        required: false,
+    },
     ngoDocuments: {
         certificationOfRegistration: {
             type: String,
@@ -56,6 +64,13 @@ const ngoSchema = mongoose.Schema({
     isApproved: {
         type: Boolean,
         default: false,
+    },
+    approvedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+    },
+    approvedAt: {
+        type: Date,
     },
 },
     { timestamps: true }

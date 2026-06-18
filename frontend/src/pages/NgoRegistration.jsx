@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect} from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
@@ -89,6 +89,8 @@ export default function NgoRegistration() {
     ngoName: '', ngoEmail: '', ngoPhone: '', ngoAddress: '', ngoCity: '',
     ngoState: '', ngoPurpose: '', ngoWebsite: '',
     prevousWorkReport: '',
+    registrationCertificateNumber: '',
+    panCardNumber: '',
   });
 
   // Document files (File objects until uploaded, then URL strings)
@@ -102,6 +104,29 @@ export default function NgoRegistration() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [existingNgo, setExistingNgo] = useState(null);
+  const [checkingNgo, setCheckingNgo] = useState(!!user);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    let active = true;
+    const checkNgoStatus = async () => {
+      try {
+        const res = await api.get('/aahar/ngo-food-requests/ngo-status');
+        if (active && res.data?.ngo) {
+          setExistingNgo(res.data.ngo);
+        }
+      } catch (err) {
+        console.error("Error checking NGO status", err);
+      } finally {
+        if (active) setCheckingNgo(false);
+      }
+    };
+    checkNgoStatus();
+    return () => { active = false; };
+  }, [user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -165,6 +190,8 @@ export default function NgoRegistration() {
     if (!form.ngoState.trim()) errs.ngoState = 'Required';
     if (!form.ngoPurpose.trim()) errs.ngoPurpose = 'Required';
     if (!form.ngoWebsite.trim()) errs.ngoWebsite = 'Required';
+    if (!form.registrationCertificateNumber.trim()) errs.registrationCertificateNumber = 'Required';
+    if (!form.panCardNumber.trim()) errs.panCardNumber = 'Required';
     if (!certUrl) errs.certificationOfRegistration = 'Please upload the Registration Certificate';
     if (!panUrl) errs.ownerPanCard = 'Please upload the PAN Card';
     if (!form.prevousWorkReport.trim()) errs.prevousWorkReport = 'Required';
@@ -201,6 +228,67 @@ export default function NgoRegistration() {
   };
 
   // ─── Gating checks ──────────────────────────────────────────────────────────
+  if (user && checkingNgo) {
+    return (
+      <div className="ngo-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="spinner spinner-lg" style={{ marginBottom: 16 }} />
+          <p style={{ color: 'var(--text-secondary)' }}>Checking NGO registration status...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (existingNgo) {
+    const isApp = existingNgo.isApproved;
+    return (
+      <div className="ngo-page">
+        <div className="ngo-hero">
+          <div className="container" style={{ textAlign: 'center' }}>
+            <div className="section-tag" style={{
+              background: isApp ? 'rgba(34,197,94,0.1)' : 'rgba(234,179,8,0.1)',
+              borderColor: isApp ? 'rgba(34,197,94,0.2)' : 'rgba(234,179,8,0.2)',
+              color: isApp ? 'var(--color-green)' : 'var(--color-yellow)'
+            }}>
+              {isApp ? '🏢 Active NGO Representative' : '⏳ Review in Progress'}
+            </div>
+            <h1 style={{ fontSize: 'clamp(2rem,4vw,2.8rem)', fontWeight: 800, marginBottom: 12 }}>
+              NGO Partner: <span className="gradient-text">{existingNgo.ngoName}</span>
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
+              {isApp
+                ? "Your organization is registered and verified. You cannot register another NGO."
+                : "Your organization registration is currently being reviewed by our admin team."}
+            </p>
+          </div>
+        </div>
+        <div className="ngo-form-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '40vh', padding: '0 24px' }}>
+          <div className="glass-card" style={{ maxWidth: 500, width: '100%', padding: '40px 32px', textAlign: 'center', border: `1px solid ${isApp ? 'rgba(34,197,94,0.15)' : 'rgba(234,179,8,0.15)'}` }}>
+            <div style={{ fontSize: '4.5rem', marginBottom: 20, animation: 'float 3s ease-in-out infinite' }}>
+              {isApp ? '🏢' : '⏳'}
+            </div>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: 12 }}>
+              {isApp ? 'Already Registered' : 'Registration Pending'}
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: 28 }}>
+              {isApp
+                ? `You have already registered an approved NGO: "${existingNgo.ngoName}". As an NGO Representative, you can manage food requests in the NGO Portal.`
+                : `Your registration for "${existingNgo.ngoName}" is pending admin approval. We verify all documents within 2-3 business days.`}
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <Link to="/" className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Go Home</Link>
+              {isApp && (
+                <Link to="/ngo-dashboard" className="btn-primary" style={{ flex: 2, justifyContent: 'center', background: 'linear-gradient(135deg,#06b6d4,#0284c7)' }}>
+                  NGO Portal →
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <div className="ngo-page">
@@ -417,6 +505,20 @@ export default function NgoRegistration() {
                 )}
               </div>
 
+              {/* Registration Certificate Number */}
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="form-label">Registration Certificate Number <span style={{ color: 'var(--color-red)' }}>*</span></label>
+                <input
+                  name="registrationCertificateNumber"
+                  type="text"
+                  className={`form-input ${errors.registrationCertificateNumber ? 'error' : ''}`}
+                  placeholder="e.g. DARPAN/2023/12345"
+                  value={form.registrationCertificateNumber}
+                  onChange={handleChange}
+                />
+                {errors.registrationCertificateNumber && <span className="form-error">⚠ {errors.registrationCertificateNumber}</span>}
+              </div>
+
               {/* PAN Card Upload */}
               <div style={{ gridColumn: '1 / -1' }}>
                 <FileUploadInput
@@ -432,6 +534,20 @@ export default function NgoRegistration() {
                 {errors.ownerPanCard && (
                   <span className="form-error">⚠ {errors.ownerPanCard}</span>
                 )}
+              </div>
+
+              {/* PAN Card Number */}
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="form-label">PAN Card Number <span style={{ color: 'var(--color-red)' }}>*</span></label>
+                <input
+                  name="panCardNumber"
+                  type="text"
+                  className={`form-input ${errors.panCardNumber ? 'error' : ''}`}
+                  placeholder="e.g. ABCDE1234F"
+                  value={form.panCardNumber}
+                  onChange={handleChange}
+                />
+                {errors.panCardNumber && <span className="form-error">⚠ {errors.panCardNumber}</span>}
               </div>
 
               {/* Previous Work Summary (text) */}

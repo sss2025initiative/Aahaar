@@ -29,7 +29,16 @@ const ngoDetailsController = asyncHandler(async (req, res) => {
     throw new Error("Only Aadhaar-verified users can register an NGO");
   }
 
-  const { ngoName, ngoEmail, ngoPhone, ngoAddress, ngoCity, ngoState, ngoPurpose, ngoWebsite, certificationOfRegistration, ownerPanCard, prevousWorkReport } = req.body;
+  const { ngoName, ngoEmail, ngoPhone, ngoAddress, ngoCity, ngoState, ngoPurpose, ngoWebsite, certificationOfRegistration, ownerPanCard, prevousWorkReport, registrationCertificateNumber, panCardNumber } = req.body;
+
+  if (!registrationCertificateNumber || !registrationCertificateNumber.trim()) {
+    res.status(400);
+    throw new Error("Registration Certificate Number is required");
+  }
+  if (!panCardNumber || !panCardNumber.trim()) {
+    res.status(400);
+    throw new Error("Owner / Director PAN Card Number is required");
+  }
 
   const alreadyRegisteredNgo = await Ngo.find({ ngoEmail });
   if (alreadyRegisteredNgo.length > 0) {
@@ -51,6 +60,8 @@ const ngoDetailsController = asyncHandler(async (req, res) => {
     ngoState,
     ngoPurpose,
     ngoWebsite,
+    registrationCertificateNumber,
+    panCardNumber,
     ngoDocuments: {
       certificationOfRegistration,
       ownerPanCard,

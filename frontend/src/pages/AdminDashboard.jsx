@@ -233,6 +233,7 @@ function TrendChart({ data, type }) {
   const [prevData, setPrevData] = useState(data);
   const [prevType, setPrevType] = useState(type);
   const [isLoaded, setIsLoaded] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(null);
 
   if (data !== prevData || type !== prevType) {
     setPrevData(data);
@@ -286,90 +287,320 @@ function TrendChart({ data, type }) {
   }
 
   const maxVal = Math.max(...formatted.map(f => f.quantity), 10);
+  const niceMax = maxVal > 340 ? Math.ceil(maxVal / 40) * 40 : 340;
 
   return (
-    <div style={{ padding: '20px 0' }}>
-      <div style={{ height: 200, width: '100%', display: 'flex', alignItems: 'flex-end', gap: 12, paddingBottom: 8, borderBottom: '1px solid var(--border-color)', position: 'relative' }}>
-        {[0.25, 0.5, 0.75, 1].map((ratio, i) => (
-          <div key={i} style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: `${ratio * 100}%`,
-            borderTop: '1px dashed rgba(255,255,255,0.05)',
-            pointerEvents: 'none'
-          }} />
-        ))}
+    <div style={{ padding: '10px 0' }}>
+      <div style={{ display: 'flex', gap: 16, height: 220, position: 'relative' }}>
+        {/* Y-Axis Column */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          width: 32,
+          color: 'var(--text-muted)',
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          paddingBottom: 8,
+          paddingTop: 4,
+          userSelect: 'none'
+        }}>
+          {[niceMax, Math.round(niceMax * 0.75), Math.round(niceMax * 0.5), Math.round(niceMax * 0.25), 0].map((tick, i) => (
+            <span key={i}>{tick}</span>
+          ))}
+        </div>
 
-        {formatted.map((point, index) => {
-          const heightPct = (point.quantity / maxVal) * 100;
-          return (
-            <div key={index} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', position: 'relative' }}>
-              <div className="chart-tooltip" style={{
-                position: 'absolute',
-                bottom: `${heightPct + 6}%`,
-                background: 'var(--bg-card)',
-                border: '1px solid var(--color-orange)',
-                borderRadius: 4,
-                padding: '4px 8px',
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                color: '#fff',
-                opacity: 0,
-                pointerEvents: 'none',
-                transition: 'opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                whiteSpace: 'nowrap',
-                zIndex: 10,
-                boxShadow: 'var(--shadow-sm)',
-                transform: 'translateY(0)'
-              }}>
-                {point.quantity} kg ({point.count} donations)
+        {/* Chart Area */}
+        <div style={{
+          flex: 1,
+          height: 200,
+          display: 'flex',
+          alignItems: 'flex-end',
+          gap: 12,
+          paddingBottom: 8,
+          borderBottom: '1px solid var(--border-color)',
+          position: 'relative'
+        }}>
+          {/* Grid Lines */}
+          {[0.25, 0.5, 0.75, 1].map((ratio, i) => (
+            <div key={i} style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: `calc(${ratio * 100}% + 8px)`,
+              borderTop: '1px dashed var(--border-color)',
+              pointerEvents: 'none',
+              opacity: 0.6
+            }} />
+          ))}
+
+          {/* Bars mapping */}
+          {formatted.map((point, index) => {
+            const heightPct = (point.quantity / niceMax) * 100;
+            const isHovered = activeIndex === index;
+            return (
+              <div
+                key={index}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  height: '100%',
+                  justifyContent: 'flex-end',
+                  position: 'relative',
+                  cursor: 'pointer',
+                  zIndex: 2
+                }}
+                onMouseEnter={() => setActiveIndex(index)}
+                onMouseLeave={() => setActiveIndex(null)}
+              >
+                {/* Column Highlight Background */}
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  bottom: -8,
+                  left: -4,
+                  right: -4,
+                  background: isHovered ? 'var(--chart-col-hover-bg)' : 'transparent',
+                  borderRadius: 6,
+                  transition: 'background var(--transition-fast)',
+                  pointerEvents: 'none',
+                  zIndex: 0
+                }} />
+
+                {/* Premium Tooltip */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: `calc(${heightPct}% + 14px)`,
+                  background: '#ffffff',
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  color: '#0f172a',
+                  opacity: isHovered ? 1 : 0,
+                  visibility: isHovered ? 'visible' : 'hidden',
+                  pointerEvents: 'none',
+                  transition: 'all 0.2s ease',
+                  whiteSpace: 'nowrap',
+                  zIndex: 10,
+                  boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+                  transform: isHovered ? 'translateY(0)' : 'translateY(8px)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  gap: 2,
+                  border: '1px solid rgba(0, 0, 0, 0.05)'
+                }}>
+                  <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>{point.label}</span>
+                  <span style={{ fontSize: '0.8rem', color: '#0f172a', fontWeight: 700 }}>Amount : {point.quantity} kg</span>
+                </div>
+
+                {/* Vertical Bar */}
+                <div style={{
+                  width: '65%',
+                  maxWidth: 36,
+                  height: isLoaded ? `${heightPct}%` : '0%',
+                  background: 'linear-gradient(to top, #3b82f6, #10b981)',
+                  borderRadius: '6px 6px 0 0',
+                  transition: 'height 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), filter var(--transition-fast), box-shadow var(--transition-fast)',
+                  boxShadow: isHovered ? '0 0 16px rgba(59, 130, 246, 0.4)' : 'none',
+                  filter: isHovered ? 'brightness(1.1)' : 'none',
+                  zIndex: 1
+                }} />
               </div>
-              
-              <div style={{
-                width: '70%',
-                maxWidth: 40,
-                height: isLoaded ? `${heightPct}%` : '0%',
-                background: 'var(--grad-primary)',
-                borderRadius: '4px 4px 0 0',
-                transition: 'height 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.25s ease, filter 0.25s ease, box-shadow 0.25s ease',
-                cursor: 'pointer',
-                boxShadow: '0 0 10px rgba(249,115,22,0.1)',
-                transformOrigin: 'bottom'
-              }} 
-              onMouseEnter={e => {
-                const tooltip = e.currentTarget.previousSibling;
-                if (tooltip) {
-                  tooltip.style.opacity = '1';
-                  tooltip.style.transform = 'translateY(-6px)';
-                }
-                e.currentTarget.style.filter = 'brightness(1.2)';
-                e.currentTarget.style.transform = 'scaleY(1.05)';
-                e.currentTarget.style.boxShadow = '0 0 15px rgba(249,115,22,0.4)';
-              }}
-              onMouseLeave={e => {
-                const tooltip = e.currentTarget.previousSibling;
-                if (tooltip) {
-                  tooltip.style.opacity = '0';
-                  tooltip.style.transform = 'translateY(0)';
-                }
-                e.currentTarget.style.filter = 'none';
-                e.currentTarget.style.transform = 'none';
-                e.currentTarget.style.boxShadow = '0 0 10px rgba(249,115,22,0.1)';
-              }}
+            );
+          })}
+        </div>
+      </div>
+
+      {/* X-Axis Column */}
+      <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+        <div style={{ width: 32 }} /> {/* offset width matching Y-axis column */}
+        <div style={{ flex: 1, display: 'flex', gap: 12 }}>
+          {formatted.map((point, index) => (
+            <div key={index} style={{ flex: 1, textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+              {point.label}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DonationByCategoryChart() {
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+
+  const categories = [
+    { label: 'Prepared Meals', value: 42, color: '#10b981' },
+    { label: 'Baked Goods', value: 28, color: '#3b82f6' },
+    { label: 'Produce', value: 15, color: '#f97316' },
+    { label: 'Dairy', value: 10, color: '#ef4444' },
+    { label: 'Other', value: 5, color: '#a855f7' }
+  ];
+
+  let cumulative = 0;
+  const segments = categories.map((cat, idx) => {
+    const offset = 100 - cumulative;
+    cumulative += cat.value;
+    return {
+      ...cat,
+      offset,
+      idx
+    };
+  });
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: 24, height: 180 }}>
+      {/* SVG Donut */}
+      <div style={{ position: 'relative', width: 140, height: 140, flexShrink: 0 }}>
+        <svg width="100%" height="100%" viewBox="0 0 40 40" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}>
+          {/* Base Ring */}
+          <circle cx="20" cy="20" r="15.915" fill="transparent" stroke="var(--border-color)" strokeWidth="4.5" />
+          
+          {/* Slices */}
+          {segments.map((seg) => {
+            const isHovered = hoveredIdx === seg.idx;
+            return (
+              <circle
+                key={seg.idx}
+                cx="20"
+                cy="20"
+                r="15.915"
+                fill="transparent"
+                stroke={seg.color}
+                strokeWidth={isHovered ? '6' : '4.5'}
+                strokeDasharray={`${seg.value} 100`}
+                strokeDashoffset={seg.offset}
+                strokeLinecap="round"
+                style={{
+                  transition: 'stroke-width 0.2s ease, filter 0.2s ease',
+                  cursor: 'pointer',
+                  filter: isHovered ? 'brightness(1.1) drop-shadow(0 0 4px rgba(255,255,255,0.1))' : 'none'
+                }}
+                onMouseEnter={() => setHoveredIdx(seg.idx)}
+                onMouseLeave={() => setHoveredIdx(null)}
               />
+            );
+          })}
+        </svg>
+
+        {/* Center Text */}
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          textAlign: 'center',
+          pointerEvents: 'none'
+        }}>
+          {hoveredIdx !== null ? (
+            <>
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: categories[hoveredIdx].color, lineHeight: 1.1 }}>
+                {categories[hoveredIdx].value}%
+              </div>
+              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+                {categories[hoveredIdx].label}
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.1 }}>
+                100%
+              </div>
+              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 }}>
+                Total
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Legends */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, minWidth: 0 }}>
+        {categories.map((cat, idx) => {
+          const isHovered = hoveredIdx === idx;
+          return (
+            <div
+              key={idx}
+              onMouseEnter={() => setHoveredIdx(idx)}
+              onMouseLeave={() => setHoveredIdx(null)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '0.82rem',
+                fontWeight: isHovered ? 700 : 500,
+                color: isHovered ? 'var(--text-primary)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                transform: isHovered ? 'translateX(4px)' : 'none',
+                minWidth: 0
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.label}</span>
+              </div>
+              <span style={{ fontWeight: 700, color: isHovered ? cat.color : 'var(--text-muted)', marginLeft: 8, flexShrink: 0 }}>{cat.value}%</span>
             </div>
           );
         })}
       </div>
-      
-      <div style={{ display: 'flex', width: '100%', gap: 12, marginTop: 8 }}>
-        {formatted.map((point, index) => (
-          <div key={index} style={{ flex: 1, textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-            {point.label}
+    </div>
+  );
+}
+
+function ImpactSummary() {
+  const items = [
+    {
+      title: 'CO2 Emissions Saved',
+      percentage: 68,
+      subtext: '12.4 tons saved this year',
+      color: '#10b981',
+      grad: 'linear-gradient(to right, #10b981, #059669)'
+    },
+    {
+      title: 'Meals Provided',
+      percentage: 82,
+      subtext: '4,120 meals this quarter',
+      color: '#3b82f6',
+      grad: 'linear-gradient(to right, #3b82f6, #4f46e5)'
+    },
+    {
+      title: 'Cost Savings',
+      percentage: 54,
+      subtext: '€6,840 saved this year',
+      color: '#f97316',
+      grad: 'linear-gradient(to right, #f97316, #ea580c)'
+    }
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, justifyContent: 'center', height: 180 }}>
+      {items.map((item, idx) => (
+        <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', fontWeight: 700 }}>
+            <span style={{ color: 'var(--text-primary)' }}>{item.title}</span>
+            <span style={{ color: item.color }}>{item.percentage}%</span>
           </div>
-        ))}
-      </div>
+          <div style={{ height: 6, background: 'var(--border-color)', borderRadius: 99, overflow: 'hidden', position: 'relative' }}>
+            <div style={{
+              height: '100%',
+              width: `${item.percentage}%`,
+              background: item.grad,
+              borderRadius: 99,
+              transition: 'width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            }} />
+          </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+            {item.subtext}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -389,6 +620,7 @@ export default function AdminDashboard() {
   const [reviewDonation, setReviewDonation] = useState(null);
   const [donationFilter, setDonationFilter] = useState('pending');
   const [ngoRequestFilter, setNgoRequestFilter] = useState('pending');
+  const [ngoFilter, setNgoFilter] = useState('all');
   const [userSearch, setUserSearch] = useState('');
   const [trendPeriod, setTrendPeriod] = useState('weekly');
 
@@ -458,6 +690,15 @@ export default function AdminDashboard() {
     };
   }, [fetchStats, fetchUsers, fetchDonations, fetchNgos, fetchNgoRequests]);
 
+  // Auto-refresh relevant data when switching tabs
+  const handleTabChange = useCallback((newTab) => {
+    setTab(newTab);
+    if (newTab === 'ngos') fetchNgos();
+    if (newTab === 'ngo-requests') fetchNgoRequests();
+    if (newTab === 'donations') fetchDonations();
+    if (newTab === 'users') fetchUsers();
+  }, [fetchNgos, fetchNgoRequests, fetchDonations, fetchUsers]);
+
   // User actions
   const makeAdmin = async (id) => { try { await api.put(`/aahar/admin/users/${id}/make-admin`); showToast('User promoted to Admin', 'success'); fetchUsers(); } catch { showToast('Failed', 'error'); } };
   const removeAdmin = async (id) => { try { await api.put(`/aahar/admin/users/${id}/remove-admin`); showToast('Admin rights removed', 'success'); fetchUsers(); } catch { showToast('Failed', 'error'); } };
@@ -471,7 +712,7 @@ export default function AdminDashboard() {
   const markAsDone = async (id) => { try { await api.put(`/aahar/admin/food-donations/${id}/done`); showToast('Donation marked as Done ✅', 'success'); fetchDonations(); } catch { showToast('Failed to mark donation as done', 'error'); } };
 
   // NGO actions
-  const approveNgo = async (id) => { try { await api.put(`/aahar/admin/approve-ngo/${id}`); showToast('NGO approved ✅', 'success'); fetchNgos(); } catch { showToast('Failed', 'error'); } };
+  const approveNgo = async (id) => { try { await api.put(`/aahar/admin/approve-ngo/${id}`); showToast('NGO approved ✅ — NGO can now submit food requests', 'success'); fetchNgos(); fetchStats(); } catch { showToast('Failed to approve NGO', 'error'); } };
 
   // NGO food request actions
   const approveNgoRequest = async (id) => { try { await api.put(`/aahar/admin/ngo-food-requests/${id}/approve`); showToast('NGO request approved ✅', 'success'); fetchNgoRequests(); } catch { showToast('Failed', 'error'); } };
@@ -517,11 +758,16 @@ export default function AdminDashboard() {
         <div className="dashboard-sidebar__nav-section-title">Management</div>
         <nav className="dashboard-sidebar__nav">
           {TABS.map(t => (
-            <button key={t.id} className={`dashboard-sidebar__nav-item ${tab === t.id ? 'dashboard-sidebar__nav-item--active' : ''}`} onClick={() => setTab(t.id)}>
+            <button key={t.id} className={`dashboard-sidebar__nav-item ${tab === t.id ? 'dashboard-sidebar__nav-item--active' : ''}`} onClick={() => handleTabChange(t.id)}>
               <span>{t.icon}</span> {t.label}
               {t.id === 'users' && users.length > 0 && tab !== 'users' && (
                 <span style={{ marginLeft: 'auto', background: 'rgba(6,182,212,0.15)', color: 'var(--color-teal)', fontSize: '0.72rem', fontWeight: 700, padding: '1px 7px', borderRadius: 99 }}>
                   {users.length}
+                </span>
+              )}
+              {t.id === 'ngos' && ngos.filter(n => !n.isApproved).length > 0 && tab !== 'ngos' && (
+                <span style={{ marginLeft: 'auto', background: 'rgba(234,179,8,0.15)', color: 'var(--color-yellow)', fontSize: '0.72rem', fontWeight: 700, padding: '1px 7px', borderRadius: 99 }}>
+                  {ngos.filter(n => !n.isApproved).length} pending
                 </span>
               )}
               {t.id === 'ngo-requests' && ngoRequests.filter(r => r.status === 'pending').length > 0 && tab !== 'ngo-requests' && (
@@ -578,6 +824,8 @@ export default function AdminDashboard() {
             </p>
           </div>
           {tab === 'overview' && <button className="btn-ghost" onClick={fetchStats} style={{ fontSize: '0.85rem' }}>🔄 Refresh</button>}
+          {tab === 'ngos' && <button className="btn-ghost" onClick={fetchNgos} style={{ fontSize: '0.85rem' }}>🔄 Refresh</button>}
+          {tab === 'ngo-requests' && <button className="btn-ghost" onClick={fetchNgoRequests} style={{ fontSize: '0.85rem' }}>🔄 Refresh</button>}
         </div>
 
         {/* ─── OVERVIEW ─── */}
@@ -600,7 +848,7 @@ export default function AdminDashboard() {
             {/* Quick Actions */}
             <div className="admin-overview-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
               {TABS.filter(t => t.id !== 'overview').map(t => (
-                <div key={t.id} className="admin-quick-card" onClick={() => setTab(t.id)} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'var(--glass-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', cursor: 'pointer', transition: 'all 0.25s ease' }}>
+                <div key={t.id} className="admin-quick-card" onClick={() => handleTabChange(t.id)} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'var(--glass-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', cursor: 'pointer', transition: 'all 0.25s ease' }}>
                   <span style={{ fontSize: '2rem' }}>{t.icon}</span>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Manage {t.label}</div>
@@ -611,12 +859,12 @@ export default function AdminDashboard() {
             </div>
 
             {/* Charts Section */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 24 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               {/* Activity Trend */}
               <div className="glass-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ fontWeight: 800, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    📈 Donation Activity Trend
+                    📈 Monthly Donations (kg)
                   </div>
                   {/* Period Toggle */}
                   <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', padding: 3, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
@@ -659,35 +907,23 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {/* Food-wise Breakdown */}
-              <div className="glass-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ fontWeight: 800, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  🍱 Food-Wise Distribution
+              {/* Bottom Analytics Row (Donation by Category & Impact Summary) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                {/* Donation by Category */}
+                <div className="glass-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div style={{ fontWeight: 800, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    📊 Donation by Category
+                  </div>
+                  <DonationByCategoryChart />
                 </div>
 
-                {stats?.stats?.donor?.totalQtyByCategory?.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', maxHeight: 220, paddingRight: 4 }}>
-                    {stats.stats.donor.totalQtyByCategory.map((cat, idx) => {
-                      const maxQty = Math.max(...stats.stats.donor.totalQtyByCategory.map(c => c.totalQty || 1), 1);
-                      const percentage = (cat.totalQty / maxQty) * 100;
-                      return (
-                        <div key={idx}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 700, marginBottom: 5 }}>
-                            <span>{cat._id}</span>
-                            <span style={{ color: 'var(--color-orange)' }}>{cat.totalQty} kg</span>
-                          </div>
-                          <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 99, overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${percentage}%`, background: 'var(--grad-primary)', borderRadius: 99, transition: 'width 1.2s ease' }} />
-                          </div>
-                        </div>
-                      );
-                    })}
+                {/* Impact Summary */}
+                <div className="glass-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div style={{ fontWeight: 800, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    ✨ Impact Summary
                   </div>
-                ) : (
-                  <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                    No food-wise metrics recorded yet.
-                  </div>
-                )}
+                  <ImpactSummary />
+                </div>
               </div>
             </div>
 
@@ -893,6 +1129,21 @@ export default function AdminDashboard() {
         {/* ─── NGOS ─── */}
         {tab === 'ngos' && (
           <div style={{ animation: 'fadeInUp 0.3s ease' }}>
+            {/* Filter bar */}
+            <div className="filter-bar" style={{ marginBottom: 20 }}>
+              {['all', 'pending', 'approved'].map(f => (
+                <button key={f} className={`filter-btn ${ngoFilter === f ? 'filter-btn--active' : ''}`}
+                  onClick={() => setNgoFilter(f)}>
+                  {f === 'all' ? 'All NGOs' : f === 'pending' ? 'Pending Approval' : 'Approved'}
+                  <span style={{ marginLeft: 6, background: 'rgba(255,255,255,0.08)', padding: '0 6px', borderRadius: 99, fontSize: '0.7rem' }}>
+                    {f === 'all' ? ngos.length : f === 'pending' ? ngos.filter(n => !n.isApproved).length : ngos.filter(n => n.isApproved).length}
+                  </span>
+                </button>
+              ))}
+              <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                {ngos.length} total NGO{ngos.length !== 1 ? 's' : ''}
+              </span>
+            </div>
             {loading ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {[1, 2, 3].map(i => (
@@ -911,12 +1162,14 @@ export default function AdminDashboard() {
             ) : ngos.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-state__icon">🏢</div>
-                <h3 className="empty-state__title">No NGOs to review</h3>
-                <p className="empty-state__text">No NGOs pending approval in your city.</p>
+                <h3 className="empty-state__title">No NGOs registered yet</h3>
+                <p className="empty-state__text">NGOs will appear here once they register on the platform.</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {ngos.map((ngo, idx) => (
+                {ngos
+                  .filter(ngo => ngoFilter === 'all' ? true : ngoFilter === 'pending' ? !ngo.isApproved : ngo.isApproved)
+                  .map((ngo, idx) => (
                   <div key={ngo._id} className="ngo-admin-card" style={{ animationDelay: `${idx * 0.06}s`, animation: 'fadeInUp 0.4s ease both' }}>
                     <div className="ngo-admin-card__info">
                       <div className="ngo-admin-card__avatar">🏢</div>
@@ -933,7 +1186,7 @@ export default function AdminDashboard() {
                         )}
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 8 }}>
                           {/* Registration Certificate */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                             <strong>Registration Cert:</strong>
                             {ngo.ngoDocuments?.certificationOfRegistration ? (
                               ngo.ngoDocuments.certificationOfRegistration.startsWith('http') ? (
@@ -945,9 +1198,14 @@ export default function AdminDashboard() {
                                 <span>{ngo.ngoDocuments.certificationOfRegistration}</span>
                               )
                             ) : <span style={{ color: 'var(--color-red)' }}>Not uploaded</span>}
+                            {ngo.registrationCertificateNumber && (
+                              <span style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: 6, color: 'var(--text-secondary)' }}>
+                                No: <strong>{ngo.registrationCertificateNumber}</strong>
+                              </span>
+                            )}
                           </div>
                           {/* PAN Card */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                             <strong>PAN Card:</strong>
                             {ngo.ngoDocuments?.ownerPanCard ? (
                               ngo.ngoDocuments.ownerPanCard.startsWith('http') ? (
@@ -959,6 +1217,11 @@ export default function AdminDashboard() {
                                 <span>{ngo.ngoDocuments.ownerPanCard}</span>
                               )
                             ) : <span style={{ color: 'var(--color-red)' }}>Not uploaded</span>}
+                            {ngo.panCardNumber && (
+                              <span style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: 6, color: 'var(--text-secondary)' }}>
+                                No: <strong>{ngo.panCardNumber}</strong>
+                              </span>
+                            )}
                           </div>
                           {ngo.ngoDocuments?.prevousWorkReport && (
                             <div style={{ whiteSpace: 'pre-wrap' }}><strong>Previous Work:</strong> {ngo.ngoDocuments.prevousWorkReport}</div>
@@ -967,6 +1230,12 @@ export default function AdminDashboard() {
                           {ngo.registeredBy && (
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: 2 }}>
                               👤 Registered by: {ngo.registeredBy.firstName} {ngo.registeredBy.surname} ({ngo.registeredBy.email})
+                            </div>
+                          )}
+                          {/* Approved info */}
+                          {ngo.isApproved && ngo.approvedAt && (
+                            <div style={{ color: '#4ade80', fontSize: '0.75rem', marginTop: 2 }}>
+                              ✅ Approved on {new Date(ngo.approvedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                             </div>
                           )}
                         </div>
@@ -986,6 +1255,7 @@ export default function AdminDashboard() {
             )}
           </div>
         )}
+
 
         {/* ─── NGO REQUESTS ─── */}
         {tab === 'ngo-requests' && (

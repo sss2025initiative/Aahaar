@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { showToast } from './Toast';
+import api from '../api/axios';
 
 export default function Navbar() {
   const { user, isAdmin, logout } = useAuth();
@@ -11,6 +12,45 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Theme state & logic
+  const [theme, setTheme] = useState(() => localStorage.getItem('aahaar_theme') || 'dark');
+
+  useEffect(() => {
+    if (theme === 'light') {
+      document.body.classList.add('light-theme');
+    } else {
+      document.body.classList.remove('light-theme');
+    }
+    localStorage.setItem('aahaar_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
+  // NGO status check
+  const [hasNgo, setHasNgo] = useState(false);
+
+  useEffect(() => {
+    if (user && !isAdmin) {
+      let active = true;
+      api.get('/aahar/ngo-food-requests/ngo-status')
+        .then(res => {
+          if (active && res.data?.ngo) {
+            setHasNgo(true);
+          } else if (active) {
+            setHasNgo(false);
+          }
+        })
+        .catch(() => {
+          if (active) setHasNgo(false);
+        });
+      return () => { active = false; };
+    } else {
+      setHasNgo(false);
+    }
+  }, [user, isAdmin]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -75,9 +115,14 @@ export default function Navbar() {
                 Donate Food
               </Link>
             )}
-            {!isAdmin && (
+            {!isAdmin && !hasNgo && (
               <Link to="/ngo-register" className={`navbar__link ${isActive('/ngo-register') ? 'navbar__link--active' : ''}`}>
                 NGO Register
+              </Link>
+            )}
+            {!isAdmin && hasNgo && (
+              <Link to="/ngo-dashboard" className={`navbar__link ${isActive('/ngo-dashboard') ? 'navbar__link--active' : ''}`}>
+                NGO Portal
               </Link>
             )}
             {isAdmin && (
@@ -89,6 +134,31 @@ export default function Navbar() {
 
           {/* Auth area */}
           <div className="navbar__auth">
+            {/* Theme Toggler */}
+            <button
+              onClick={toggleTheme}
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '50%',
+                width: 38,
+                height: 38,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '1.15rem',
+                color: 'var(--text-primary)',
+                transition: 'all 0.25s',
+                marginRight: 12
+              }}
+              title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-orange)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
+            >
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+
             {user ? (
               <div className="navbar__user" ref={dropdownRef}>
                 <button
@@ -127,6 +197,11 @@ export default function Navbar() {
                     {!isAdmin && (
                       <Link to="/donate" className="navbar__dropdown-item">
                         🍱 Donate Food
+                      </Link>
+                    )}
+                    {!isAdmin && hasNgo && (
+                      <Link to="/ngo-dashboard" className="navbar__dropdown-item">
+                        🏢 NGO Portal
                       </Link>
                     )}
                     {isAdmin && (
@@ -175,7 +250,8 @@ export default function Navbar() {
               {!isAdmin && <Link to="/dashboard" className="navbar__mobile-link">📊 Dashboard</Link>}
               {!isAdmin && <Link to="/donate" className="navbar__mobile-link">🍱 Donate Food</Link>}
               {isAdmin && <Link to="/admin" className="navbar__mobile-link">⚡ Admin Panel</Link>}
-              {!isAdmin && <Link to="/ngo-register" className="navbar__mobile-link">🏢 NGO Register</Link>}
+              {!isAdmin && !hasNgo && <Link to="/ngo-register" className="navbar__mobile-link">🏢 NGO Register</Link>}
+              {!isAdmin && hasNgo && <Link to="/ngo-dashboard" className="navbar__mobile-link">🏢 NGO Portal</Link>}
               <div className="navbar__mobile-divider" />
               <button className="navbar__mobile-link" style={{ color: 'var(--color-red)', background: 'none', border: 'none', textAlign: 'left', width: '100%', cursor: 'pointer' }} onClick={handleLogout}>
                 🚪 Logout
