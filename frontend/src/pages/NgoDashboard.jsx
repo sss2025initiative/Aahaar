@@ -151,6 +151,7 @@ export default function NgoDashboard() {
   const [manualToken, setManualToken] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [scannedData, setScannedData] = useState(null);
+  const [verifyingRequestId, setVerifyingRequestId] = useState(null);
 
   // Form state
   const emptyItem = { foodName: '', quantity: '', quantityType: 'kg', category: '' };
@@ -497,7 +498,7 @@ export default function NgoDashboard() {
                   <button
                     className="btn-primary"
                     style={{ background: 'var(--grad-purple)', padding: '10px 22px', fontSize: '0.88rem', whiteSpace: 'nowrap', border: 'none', color: '#fff' }}
-                    onClick={() => { setScannerOpen(true); setVerifyTab('scan'); setScannedData(null); setManualToken(''); }}
+                    onClick={() => { setScannerOpen(true); setVerifyTab('scan'); setScannedData(null); setManualToken(''); setVerifyingRequestId(null); }}
                   >
                     📷 Verify Pickup
                   </button>
@@ -840,7 +841,8 @@ export default function NgoDashboard() {
                                   setScannerOpen(true);
                                   setVerifyTab('scan');
                                   setScannedData(null);
-                                  setManualToken(req.verificationToken);
+                                  setManualToken(req.verificationToken || '');
+                                  setVerifyingRequestId(req._id);
                                 }}
                               >
                                 📷 Scan QR to Verify
@@ -890,7 +892,7 @@ export default function NgoDashboard() {
         <div className="modal-overlay" onClick={() => !verifying && setScannerOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 450, width: '90%' }}>
             <h3 className="modal__title" style={{ fontSize: '1.25rem', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-              📷 Verify Food Pickup
+              📷 {verifyingRequestId ? 'Verify Request Fulfillment' : 'Verify Food Pickup'}
             </h3>
 
             {scannedData ? (
@@ -901,13 +903,13 @@ export default function NgoDashboard() {
                 </div>
                 <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 8 }}>Verification Successful!</h4>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 20 }}>
-                  The food donation has been successfully verified and marked as **Completed**.
+                  {verifyingRequestId ? 'The food request fulfillment' : 'The food donation'} has been successfully verified and marked as **Completed**.
                 </p>
-                {scannedData.foodItemDetails && (
+                {(scannedData.foodItemDetails || scannedData.foodItemsNeeded) && (
                   <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: 8, padding: 12, textAlign: 'left', fontSize: '0.8rem', marginBottom: 20 }}>
-                    <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--color-orange)' }}>📦 Food Items Picked Up:</div>
+                    <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--color-orange)' }}>📦 Food Items:</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {scannedData.foodItemDetails.map((item, i) => (
+                      {(scannedData.foodItemDetails || scannedData.foodItemsNeeded).map((item, i) => (
                         <span key={i} style={{ background: 'rgba(255,255,255,0.04)', padding: '2px 8px', borderRadius: 4, fontSize: '0.75rem' }}>
                           {item.foodName} ({item.quantity}{item.quantityType})
                         </span>
@@ -975,7 +977,11 @@ export default function NgoDashboard() {
                             showToast("Invalid QR structure", "error");
                           }
                         } catch {
-                          handleVerifyPickup(null, decodedText);
+                          if (verifyingRequestId) {
+                            handleVerifyRequestFulfillment(verifyingRequestId, decodedText);
+                          } else {
+                            handleVerifyPickup(null, decodedText);
+                          }
                         }
                       }}
                       onScanError={() => {
@@ -1002,10 +1008,16 @@ export default function NgoDashboard() {
                     <button 
                       className="btn-primary" 
                       style={{ width: '100%', justifyContent: 'center', background: 'var(--grad-purple)', marginTop: 8, border: 'none' }}
-                      onClick={() => handleVerifyPickup(null, manualToken)}
+                      onClick={() => {
+                        if (verifyingRequestId) {
+                          handleVerifyRequestFulfillment(verifyingRequestId, manualToken);
+                        } else {
+                          handleVerifyPickup(null, manualToken);
+                        }
+                      }}
                       disabled={verifying || !manualToken.trim()}
                     >
-                      {verifying ? 'Verifying...' : 'Verify & Complete Pickup'}
+                      {verifying ? 'Verifying...' : verifyingRequestId ? 'Verify & Complete Fulfillment' : 'Verify & Complete Pickup'}
                     </button>
                   </div>
                 )}
