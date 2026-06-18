@@ -890,7 +890,7 @@ export default function NgoDashboard() {
       {/* Verify Pickup Scanner Modal */}
       {scannerOpen && (
         <div className="modal-overlay" onClick={() => !verifying && setScannerOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 450, width: '90%' }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 450, width: '90%', maxHeight: '90vh', overflowY: 'auto', padding: 20 }}>
             <h3 className="modal__title" style={{ fontSize: '1.25rem', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
               📷 {verifyingRequestId ? 'Verify Request Fulfillment' : 'Verify Food Pickup'}
             </h3>
@@ -957,6 +957,21 @@ export default function NgoDashboard() {
                     ⌨️ Enter Code
                   </button>
                 </div>
+
+                {verifyingRequestId && manualToken && (
+                  <div style={{ 
+                    background: 'rgba(249, 115, 22, 0.05)', 
+                    border: '1px solid rgba(249, 115, 22, 0.18)', 
+                    borderRadius: 8, 
+                    padding: '10px 14px', 
+                    marginBottom: 16,
+                    fontSize: '0.82rem',
+                    textAlign: 'center',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    🔑 Expected Request Token: <strong style={{ fontFamily: 'monospace', fontSize: '1.05rem', color: 'var(--color-orange)', letterSpacing: 0.8 }}>{manualToken}</strong>
+                  </div>
+                )}
 
                 {verifyTab === 'scan' ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
