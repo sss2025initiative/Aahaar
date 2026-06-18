@@ -199,6 +199,12 @@ const verifyDonationPickup = asyncHandler(async (req, res) => {
 
     // NGO Matching Check: If logged-in user is not admin, verify they represent the designated NGO
     if (!req.user.isAdmin) {
+        // If donation was made as a general donation (random/unspecified), only admins can verify it
+        if (!donation.ngoPreference || donation.ngoPreference.toString() === 'random') {
+            res.status(403);
+            throw new Error("This general donation is handled by Admin. Only Admins can verify this pickup.");
+        }
+
         const userNgo = await Ngo.findOne({ registeredBy: req.user._id });
         if (!userNgo) {
             res.status(403);
@@ -209,12 +215,10 @@ const verifyDonationPickup = asyncHandler(async (req, res) => {
             throw new Error("Your NGO registration is pending approval. You cannot verify pickups yet.");
         }
 
-        // If donation was made to a specific NGO (not 'random'), make sure it matches the scanning NGO
-        if (donation.ngoPreference && donation.ngoPreference.toString() !== 'random') {
-            if (donation.ngoPreference.toString() !== userNgo._id.toString()) {
-                res.status(403);
-                throw new Error("This donation is assigned to a different NGO. You are not authorized to verify it.");
-            }
+        // If donation was made to a specific NGO, make sure it matches the scanning NGO
+        if (donation.ngoPreference.toString() !== userNgo._id.toString()) {
+            res.status(403);
+            throw new Error("This donation is assigned to a different NGO. You are not authorized to verify it.");
         }
     }
 
