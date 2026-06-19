@@ -1,160 +1,169 @@
 # AAHAAR: Donation Orchestration & Tax Benefit Platform
 
-AAHAAR is a food donation platform that connects food donors with NGOs and individuals in need. The platform helps reduce food waste by facilitating the donation of excess food to those who need it most.
+<p align="center">
+  <img src="backend/logo.png" alt="Aahaar Logo" width="120" style="border-radius: 50%"/>
+</p>
 
-## 🚀 Features
+<p align="center">
+  <a href="#-features">Features</a> •
+  <a href="#-functional-workflows">Workflows</a> •
+  <a href="#-section-80g-tax-exemption">Tax Exemption</a> •
+  <a href="#-tech-stack">Tech Stack</a> •
+  <a href="#-getting-started">Getting Started</a> •
+  <a href="#-api-endpoints">API Endpoints</a>
+</p>
 
-- User Authentication (Donors, NGOs, and Recipients)
-- Food Donation Management
-- Real-time Food Availability Tracking
-- Location-based Food Distribution
-- Contact Information Management
-- Food Category Classification
-- Status Tracking (Pending, In Transit, Delivered)
+---
+
+**AAHAAR** is a comprehensive, full-stack surplus food rescue, routing logistics, and tax benefit orchestration platform. By bridging the gap between food donors (wedding halls, restaurants, hotels, corporate kitchens, and individuals) and verified local non-governmental organizations (NGOs), Aahaar minimizes food waste while feeding underserved communities in real-time.
+
+![Aahaar Landing Page](images/landing_hero.png)
+
+---
+
+## 🚀 Key Features
+
+* **Multi-Portal Experience**: Separate interactive dashboards for Donors, NGOs, and Administrators.
+* **Document Verification Protocol**: Aadhaar validation for donors and registration certificate checks for NGOs via AWS S3 storage.
+* **Real-time Status Tracking**: Instant status syncing (Pending, In Transit, Delivered) for all active donations.
+* **Automated Exemption Module**: Built-in 80G tax benefit calculation and certificate generation.
+* **Location-based Routing**: Matches surplus food listings with nearest certified NGOs.
+* **Analytical Dashboards**: Aggregates weekly, monthly, and yearly statistics (meals served, active partners, total weight).
+
+---
+
+## 🔄 Functional Workflows
+
+### 1. Donor Portal (How it works & Donating)
+* **Onboarding**: Users create an account and upload their Aadhaar Card to verify donor identity.
+* **Surplus Listing**: Donors submit food listings by providing description tags, categories (e.g. Cooked Meals, Grains, Bakery items), shelf life/expiry time, and pictures.
+* **Status Updates**: Donors can track who picked up their donation and check delivery history.
+* **Impact Tracking**: Personalized donor dashboard displays total donations created, success rate percentage, and meals served.
+
+### 2. NGO Portal (Claim & Onboard)
+* **Registration**: NGOs register with PAN credentials and operational cities, uploading registration certificates for administrative verification.
+* **Request Pipeline**: NGO representatives can view nearby available donations or submit custom food requests for local distribution drives.
+* **Fulfillment Management**: NGOs claim allocations, manage transport pickup times, and update fulfillment statuses.
+
+### 3. Admin Control Panel (Verification & Routing)
+* **Credential Verification**: Admins audit donor Aadhaar cards and NGO registration certificates.
+* **Logistic Assignment**: Match and assign approved food listings to active nearby NGO distribution partners.
+* **System Metrics Monitoring**: Review platform-wide statistics like total active users, registered NGOs, and cumulative meals served.
+
+![Admin Dashboard](images/admin_dashboard.png)
+
+---
+
+## 🧾 Section 80G Tax Exemption
+
+Aahaar simplifies social responsibility by offering tangible tax savings to verified donors under Section 80G.
+
+![One Platform Double the Value](images/tax_benefits.png)
+
+* **Dynamic Exemption Calculation**: Automatically computes deduction indexes (up to 40%) based on food categories, quantity, and audited commercial values.
+* **Automated Certificate Generation**: Issues itemized, audit-ready PDF tax benefit certificates directly to the donor's profile upon successful delivery confirmation by the receiving NGO.
+
+---
 
 ## 🛠 Tech Stack
 
-### Backend
+| Layer | Technologies Used |
+| :--- | :--- |
+| **Frontend** | React.js, Redux (State Management), Material-UI (UI Library), Axios (API Client) |
+| **Backend** | Node.js, Express.js (REST APIs), JWT (Authentication) |
+| **Database & Storage** | MongoDB with Mongoose (Schemas & Queries), AWS S3 (Secure Document Hosting) |
 
-- Node.js
-- Express.js
-- MongoDB with Mongoose
-- JWT Authentication
-- AWS S3 (for image storage)
-
-### Frontend
-
-- React.js
-- Redux (State Management)
-- Material-UI (UI Components)
-- Axios (API Calls)
+---
 
 ## 📁 Project Structure
 
 ```
 Aahaar/
 ├── 📁 backend/
-│   ├── 📁 controllers/
-│   │   ├── 📄 adminController.js
-│   │   ├── 📄 foodInfoController.js
-│   │   ├── 📄 ngoController.js
-│   │   ├── 📄 statsController.js
-│   │   ├── 📄 taxController.js
-│   │   ├── 📄 userController.js
-│   │   └── 📄 userStatsController.js
-│   ├── 📁 middlewares/
-│   │   ├── 📄 asyncHandler.js
-│   │   ├── 📄 authMiddleware.js
-│   │   ├── 📄 errorHandler.js
-│   │   └── 📄 isAdmin.js
-│   ├── 📁 models/
-│   │   ├── 📄 foodInfoModel.js
-│   │   ├── 📄 ngoModel.js
-│   │   ├── 📄 taxModel.js
-│   │   └── 📄 userModel.js
-│   ├── 📁 node_modules/ 🚫 (auto-hidden)
-│   ├── 📁 routes/
-│   │   ├── 📄 FoodInfoRoute.js
-│   │   ├── 📄 adminRoutes.js
-│   │   ├── 📄 ngoRoutes.js
-│   │   ├── 📄 statsRoutes.js
-│   │   ├── 📄 userRoutes.js
-│   │   └── 📄 userStatsRoutes.js
-│   ├── 📁 utils/
-│   │   ├── 📄 db.js
-│   │   ├── 📄 seedAdmin.js
-│   │   └── 📄 token.js
-│   ├── 🔒 .env 🚫 (auto-hidden)
-│   ├── 🚫 .gitignore
-│   ├── 📖 README.md
-│   ├── 🖼️ logo.png
-│   ├── 📄 package-lock.json
-│   ├── 📄 package.json
-│   ├── 📄 s3Config.js
-│   ├── 📄 server.js
-│   └── 📄 testing.js
-└── 📖 README.md
+│   ├── 📁 controllers/         # Logic handlers for users, stats, NGOs, tax, admin
+│   ├── 📁 middlewares/         # Auth verification, role checkers, async wrappers
+│   ├── 📁 models/              # Mongoose database schemas
+│   ├── 📁 routes/              # Express endpoint routers
+│   ├── 📁 utils/               # Database setup, admin seed scripts, token generation
+│   ├── 📄 server.js            # Node backend entry point
+│   └── 📄 s3Config.js          # AWS S3 integration
+├── 📁 frontend/
+│   ├── 📁 src/
+│   │   ├── 📁 components/      # Chatbot, Navbar, and layout widgets
+│   │   ├── 📁 pages/           # Admin, Donor, NGO Dashboards, and landing views
+│   │   └── 📄 main.jsx         # Vite react entry point
+└── 📁 images/                  # Platform screenshot assets
 ```
+
+---
 
 ## 🚀 Getting Started
 
 ### Backend Setup
-
-1. Navigate to backend directory:
-
+1. Navigate to the backend directory:
    ```bash
    cd backend
    ```
-
 2. Install dependencies:
-
    ```bash
    npm install
    ```
-
-3. Create `.env` file with required variables:
-
-   ```
-   MONGO_URI=your_mongo_connection_string
+3. Create a `.env` file in the root of the backend folder:
+   ```env
+   MONGO_URI=your_mongodb_connection_string
    JWT_SECRET=your_jwt_secret
    PORT=5000
    AWS_ACCESS_KEY_ID=your_aws_access_key
    AWS_SECRET_ACCESS_KEY=your_aws_secret_key
    AWS_BUCKET_NAME=your_s3_bucket_name
    ```
-
-4. Start the development server:
+4. Run the development server:
    ```bash
    npm run dev
    ```
 
 ### Frontend Setup
-
-1. Navigate to frontend directory:
-
+1. Navigate to the frontend directory:
    ```bash
    cd frontend
    ```
-
 2. Install dependencies:
-
    ```bash
    npm install
    ```
-
-3. Start the development server:
+3. Start the application:
    ```bash
    npm start
    ```
 
+---
+
 ## 📝 API Endpoints
 
 ### Food Information
-
-- `POST /api/foodInfo/createFoodInfo` - Create new food donation
-- `GET /api/foodInfo/getFoodInfo` - Get all food donations
-- `GET /api/foodInfo/getFoodInfoById/:id` - Get specific food donation
-- `PUT /api/foodInfo/updateFoodInfo/:id` - Update food donation
-- `DELETE /api/foodInfo/deleteFoodInfo/:id` - Delete food donation
+* `POST /api/foodInfo/createFoodInfo` - Create a new food donation
+* `GET /api/foodInfo/getFoodInfo` - Retrieve all food donations
+* `GET /api/foodInfo/getFoodInfoById/:id` - Fetch details for a specific donation
+* `PUT /api/foodInfo/updateFoodInfo/:id` - Update food donation details
+* `DELETE /api/foodInfo/deleteFoodInfo/:id` - Remove a food donation listing
 
 ### User Management
-
-- `POST /api/users/register` - Register new user
-- `POST /api/users/auth` - User login
-- `POST /api/users/logout` - User logout
+* `POST /api/users/register` - Create a new donor/user account
+* `POST /api/users/auth` - Login user and generate access token
+* `POST /api/users/logout` - Logout user and clear session
 
 ### NGO Management
+* `POST /api/ngo/aahaarNgoDocumentsUpload` - Upload NGO documentation to AWS S3
+* `POST /api/ngo/aahaarNgoDetails` - Register PAN card and operational credentials
 
-- `POST /api/ngo/aahaarNgoDocumentsUpload` - Upload NGO documents
-- `POST /api/ngo/aahaarNgoDetails` - Register NGO details
+---
 
-## 📄 License
+## 🤝 Contribution & Licenses
+Contributions are highly welcomed. Please feel free to open issues or submit pull requests. Licensed under the MIT License.
 
-Licensed under the MIT License.
+---
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+## 📊 Sequence Diagram (System Logistics)
 
 ```mermaid
 %%{init: {'theme': 'default', 'themeVariables': { 'actorMargin': 50, 'boxMargin': 10, 'messageMargin': 35, 'mirrorActors': false, 'bottomMarginAdj': 1, 'noteMargin': 10 }}}%%
@@ -268,4 +277,3 @@ sequenceDiagram
     Admin->>System: Verify User
     end
 ```
-
