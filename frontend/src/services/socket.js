@@ -9,7 +9,7 @@ export const connectSocket = (userId) => {
   if (socket) return;
 
   // Connecting to the backend server URL
-  socket = io('http://localhost:5001', {
+  socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5001', {
     transports: ['websocket'],
     withCredentials: true,
   });
