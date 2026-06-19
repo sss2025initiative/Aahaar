@@ -288,7 +288,10 @@ export default function NgoDashboard() {
          notification.type === 'FOOD_REQUEST_APPROVED' ||
          notification.type === 'FOOD_REQUEST_REJECTED' ||
          notification.type === 'DONATION_APPROVED' ||
-         notification.type === 'DONATION_COMPLETED')
+         notification.type === 'DONATION_COMPLETED' ||
+         notification.type === 'NEW_DONATION_ASSIGNED' ||
+         notification.type === 'DONATION_CREATED' ||
+         notification.type === 'DONATION_REJECTED')
       ) {
         fetchData();
       }
@@ -419,9 +422,15 @@ export default function NgoDashboard() {
               onClick={() => setTab('donations')}
             >
               <span>🎁</span> Direct Donations
-              {assignedDonations.filter(d => d.status === 'approved').length > 0 && tab !== 'donations' && (
-                <span style={{ marginLeft: 'auto', background: 'rgba(6,182,212,0.15)', color: 'var(--color-teal)', fontSize: '0.72rem', fontWeight: 700, padding: '1px 7px', borderRadius: 99 }}>
-                  {assignedDonations.filter(d => d.status === 'approved').length}
+              {assignedDonations.filter(d => {
+                const s = (d.status || '').replace(/_/g, '').toUpperCase();
+                return s === 'PENDINGNGOACCEPTANCE' || s === 'NGOACCEPTED' || s === 'APPROVED' || s === 'REQUESTACCEPTED';
+              }).length > 0 && tab !== 'donations' && (
+                <span style={{ marginLeft: 'auto', background: 'rgba(234,179,8,0.15)', color: '#fbbf24', fontSize: '0.72rem', fontWeight: 700, padding: '1px 7px', borderRadius: 99 }}>
+                  {assignedDonations.filter(d => {
+                    const s = (d.status || '').replace(/_/g, '').toUpperCase();
+                    return s === 'PENDINGNGOACCEPTANCE' || s === 'NGOACCEPTED' || s === 'APPROVED' || s === 'REQUESTACCEPTED';
+                  }).length}
                 </span>
               )}
             </button>
@@ -940,17 +949,17 @@ export default function NgoDashboard() {
 
                           {req.status !== 'fulfilled' && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10 }}>
-                              <div>
-                                Code: <strong style={{ fontFamily: 'monospace', fontSize: '0.95rem', color: 'var(--color-orange)' }}>{req.verificationToken}</strong>
+                              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                💡 Ask the donor for their <strong style={{ color: 'var(--color-orange)' }}>6-digit code</strong> or scan their QR to verify delivery.
                               </div>
                               <button 
                                 className="btn-primary" 
-                                style={{ fontSize: '0.75rem', padding: '6px 12px', background: 'var(--grad-purple)', border: 'none', color: '#fff' }}
+                                style={{ fontSize: '0.75rem', padding: '6px 12px', background: 'var(--grad-purple)', border: 'none', color: '#fff', flexShrink: 0, marginLeft: 12 }}
                                 onClick={() => {
                                   setScannerOpen(true);
                                   setVerifyTab('scan');
                                   setScannedData(null);
-                                  setManualToken(req.verificationToken || '');
+                                  setManualToken('');
                                   setVerifyingRequestId(req._id);
                                 }}
                               >
@@ -997,28 +1006,42 @@ export default function NgoDashboard() {
 
         {/* ─── DIRECT DONATIONS ─── */}
         {tab === 'donations' && (() => {
+          // Normalize any status value to a lowercase key for comparison
+          const normalizeStatus = (status) => (status || '').toLowerCase().replace(/_/g, '');
+
           const isDonationStatusMatch = (status, filter) => {
             if (filter === 'all') return true;
-            const s = (status || '').toLowerCase();
+            const s = normalizeStatus(status);
+            if (filter === 'pending') {
+              // Awaiting NGO acceptance
+              return s === 'pendingngoaccaptance' || s === 'pendingngoacceptance';
+            }
+            if (filter === 'accepted') {
+              // Accepted, ready for pickup
+              return (
+                s === 'approved' ||
+                s === 'ngoaccepted' ||
+                s === 'requestaccepted' ||
+                s === 'pickupinprogress' ||
+                s === 'verified'
+              );
+            }
             if (filter === 'done') {
               return s === 'done' || s === 'completed';
             }
-            if (filter === 'approved') {
-              return s === 'approved' || s === 'ngo_accepted' || s === 'ngoaccepted' || s === 'request_accepted' || s === 'requestaccepted' || s === 'pending_ngo_acceptance' || s === 'pendingngoacceptance' || s === 'pickup_in_progress' || s === 'pickupinprogress' || s === 'verified';
-            }
-            return s === filter;
+            return s === filter.replace(/_/g, '');
           };
           const filteredDonations = assignedDonations.filter(d => isDonationStatusMatch(d.status, donationStatusFilter));
           return (
             <div className="dashboard-section" style={{ animation: 'fadeInUp 0.3s ease' }}>
               <div className="filter-bar">
-                {['all', 'approved', 'done'].map(f => (
+                {['all', 'pending', 'accepted', 'done'].map(f => (
                   <button
                     key={f}
                     className={`filter-btn ${donationStatusFilter === f ? 'filter-btn--active' : ''}`}
                     onClick={() => setDonationStatusFilter(f)}
                   >
-                    {f === 'all' ? 'All' : f === 'approved' ? 'Pending Pickup' : 'Completed'}
+                    {f === 'all' ? 'All' : f === 'pending' ? 'Awaiting Acceptance' : f === 'accepted' ? 'Ready for Pickup' : 'Completed'}
                     {f !== 'all' && (
                       <span style={{ marginLeft: 6, background: 'rgba(255,255,255,0.08)', padding: '0 6px', borderRadius: 99, fontSize: '0.7rem' }}>
                         {assignedDonations.filter(d => isDonationStatusMatch(d.status, f)).length}
@@ -1048,9 +1071,14 @@ export default function NgoDashboard() {
                     const donorName = donor ? `${donor.firstName} ${donor.surname || ''}`.trim() : (donation.contactDetails?.contactPersonName || donation.contactPersonName || 'Donor');
                     const donorPhone = donor?.phone || donation.contactDetails?.phoneNumber || 'N/A';
                     const donorEmail = donor?.email || donation.contactDetails?.email || 'N/A';
+                    const sNorm = normalizeStatus(donation.status);
+                    const isPendingAcceptance = sNorm === 'pendingngoacceptance';
+                    const isAccepted = sNorm === 'approved' || sNorm === 'ngoaccepted' || sNorm === 'requestaccepted' || sNorm === 'pickupinprogress' || sNorm === 'verified';
+                    const isCompleted = sNorm === 'done' || sNorm === 'completed';
+                    const isRejected = sNorm === 'rejected';
                     
                     return (
-                      <div key={donation._id} className="donation-card" style={{ borderLeft: '4px solid var(--color-teal)' }}>
+                      <div key={donation._id} className="donation-card" style={{ borderLeft: `4px solid ${isPendingAcceptance ? 'var(--color-yellow)' : isCompleted ? '#4ade80' : isRejected ? 'var(--color-red)' : 'var(--color-teal)'}` }}>
                         <div className="donation-card__header">
                           <div>
                             <div className="donation-card__id">#{String(donation._id).slice(-10).toUpperCase()}</div>
@@ -1058,36 +1086,24 @@ export default function NgoDashboard() {
                               Donor: <strong style={{ color: 'var(--text-primary)' }}>{donorName}</strong>
                             </div>
                           </div>
-                          {donation.status === 'done' || donation.status === 'COMPLETED' ? (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 5,
-                              padding: '4px 12px', borderRadius: 99, fontSize: '0.78rem', fontWeight: 700,
-                              background: 'rgba(34,197,94,0.15)', color: '#4ade80'
-                            }}>
-                              🚚 Completed
+                          {isCompleted ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 99, fontSize: '0.78rem', fontWeight: 700, background: 'rgba(34,197,94,0.15)', color: '#4ade80' }}>
+                              ✅ Completed
                             </span>
-                          ) : donation.status === 'PENDING_NGO_ACCEPTANCE' ? (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 5,
-                              padding: '4px 12px', borderRadius: 99, fontSize: '0.78rem', fontWeight: 700,
-                              background: 'rgba(234,179,8,0.15)', color: '#fbbf24'
-                            }}>
+                          ) : isRejected ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 99, fontSize: '0.78rem', fontWeight: 700, background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>
+                              ❌ Rejected
+                            </span>
+                          ) : isPendingAcceptance ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 99, fontSize: '0.78rem', fontWeight: 700, background: 'rgba(234,179,8,0.15)', color: '#fbbf24' }}>
                               ⏳ Awaiting Your Acceptance
                             </span>
-                          ) : donation.status === 'approved' || donation.status === 'NGO_ACCEPTED' || donation.status === 'REQUEST_ACCEPTED' ? (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 5,
-                              padding: '4px 12px', borderRadius: 99, fontSize: '0.78rem', fontWeight: 700,
-                              background: 'rgba(6,182,212,0.15)', color: '#22d3ee'
-                            }}>
-                              ⏳ Ready for Pickup
+                          ) : isAccepted ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 99, fontSize: '0.78rem', fontWeight: 700, background: 'rgba(6,182,212,0.15)', color: '#22d3ee' }}>
+                              🚚 Ready for Pickup
                             </span>
                           ) : (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 5,
-                              padding: '4px 12px', borderRadius: 99, fontSize: '0.78rem', fontWeight: 700,
-                              background: 'rgba(234,179,8,0.15)', color: '#fbbf24'
-                            }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 99, fontSize: '0.78rem', fontWeight: 700, background: 'rgba(234,179,8,0.15)', color: '#fbbf24' }}>
                               ⏳ Awaiting Admin Approval
                             </span>
                           )}
@@ -1112,7 +1128,15 @@ export default function NgoDashboard() {
                           <div>Email: <strong>{donorEmail}</strong></div>
                         </div>
 
-                        {donation.status === 'PENDING_NGO_ACCEPTANCE' && (
+                        {/* Verify pickup — NGO asks the donor for the code, no code shown here */}
+                        {isAccepted && (
+                          <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: 8, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                            💡 Ask the donor to show their <strong style={{ color: 'var(--color-teal)' }}>Pickup Pass</strong> (QR or 6-digit code). Scan or enter it below to verify.
+                          </div>
+                        )}
+
+                        {/* Accept / Reject buttons for pending acceptance */}
+                        {isPendingAcceptance && (
                           <div style={{ display: 'flex', gap: 10, marginTop: 14, borderTop: '1px solid var(--border-color)', paddingTop: 12 }}>
                             <button
                               className="btn-primary"
@@ -1131,11 +1155,9 @@ export default function NgoDashboard() {
                           </div>
                         )}
 
-                        {donation.status !== 'done' && donation.status !== 'COMPLETED' && donation.status !== 'PENDING_NGO_ACCEPTANCE' && donation.status !== 'rejected' && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, borderTop: '1px solid var(--border-color)', paddingTop: 12 }}>
-                            <div>
-                              Code: <strong style={{ fontFamily: 'monospace', fontSize: '0.95rem', color: 'var(--color-orange)' }}>{donation.verificationToken}</strong>
-                            </div>
+                        {/* Verify pickup button — opens scanner with blank token so NGO must ask donor */}
+                        {isAccepted && (
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14, borderTop: '1px solid var(--border-color)', paddingTop: 12 }}>
                             <button
                               className="btn-primary"
                               style={{ fontSize: '0.8rem', padding: '7px 16px', background: 'var(--grad-teal)', border: 'none', color: '#fff' }}
@@ -1143,12 +1165,19 @@ export default function NgoDashboard() {
                                 setScannerOpen(true);
                                 setVerifyTab('scan');
                                 setScannedData(null);
-                                setManualToken(donation.verificationToken || '');
+                                setManualToken('');
                                 setVerifyingRequestId(null);
                               }}
                             >
                               📷 Verify Pickup
                             </button>
+                          </div>
+                        )}
+
+                        {/* Rejection reason */}
+                        {isRejected && donation.rejectedReason && (
+                          <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 8, border: '1px solid rgba(239,68,68,0.15)', fontSize: '0.82rem', color: '#f87171' }}>
+                            ⚠️ Rejection reason: {donation.rejectedReason}
                           </div>
                         )}
                       </div>

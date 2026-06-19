@@ -37,6 +37,16 @@ function SkeletonDonation() {
 
 const FILTER_OPTIONS = ['all', 'pending', 'approved', 'rejected', 'done'];
 
+// Normalize status for display/filtering
+const normalizeStatusForFilter = (status) => {
+  const s = (status || '').toUpperCase().replace(/_/g, '');
+  if (s === 'PENDINGNGOACCEPTANCE') return 'pending';
+  if (s === 'NGOACCEPTED' || s === 'REQUESTACCEPTED' || s === 'APPROVED') return 'approved';
+  if (s === 'DONE' || s === 'COMPLETED') return 'done';
+  if (s === 'REJECTED') return 'rejected';
+  return (status || '').toLowerCase();
+};
+
 export default function DonorDashboard() {
   const { user, logout, uploadAadhaar } = useAuth();
   const navigate = useNavigate();
@@ -178,12 +188,12 @@ export default function DonorDashboard() {
   };
 
   const total = donations.length;
-  const pending = donations.filter(d => d.status === 'pending').length;
-  const approved = donations.filter(d => d.status === 'approved').length;
-  const rejected = donations.filter(d => d.status === 'rejected').length;
-  const done = donations.filter(d => d.status === 'done').length;
+  const pending = donations.filter(d => normalizeStatusForFilter(d.status) === 'pending').length;
+  const approved = donations.filter(d => normalizeStatusForFilter(d.status) === 'approved').length;
+  const rejected = donations.filter(d => normalizeStatusForFilter(d.status) === 'rejected').length;
+  const done = donations.filter(d => normalizeStatusForFilter(d.status) === 'done').length;
 
-  const filtered = filter === 'all' ? donations : donations.filter(d => d.status === filter);
+  const filtered = filter === 'all' ? donations : donations.filter(d => normalizeStatusForFilter(d.status) === filter);
 
   const stats = [
     { label: 'Total Donated', value: total, icon: '📦', grad: 'var(--grad-primary)', sub: 'All time' },
@@ -394,7 +404,7 @@ export default function DonorDashboard() {
                 {opt === 'all' ? 'All' : opt === 'done' ? 'Completed' : opt.charAt(0).toUpperCase() + opt.slice(1)}
                 {opt !== 'all' && (
                   <span style={{ marginLeft: 6, background: 'rgba(255,255,255,0.1)', padding: '0px 6px', borderRadius: 99, fontSize: '0.7rem' }}>
-                    {donations.filter(d => d.status === opt).length}
+                    {donations.filter(d => normalizeStatusForFilter(d.status) === opt).length}
                   </span>
                 )}
               </button>
@@ -475,7 +485,7 @@ export default function DonorDashboard() {
                     >
                       ℹ️ Details
                     </button>
-                    {(donation.status === 'pending' || donation.status === 'approved') && donation.verificationToken && (
+                    {donation.verificationToken && normalizeStatusForFilter(donation.status) !== 'rejected' && normalizeStatusForFilter(donation.status) !== 'done' && (
                       <button 
                         className="btn-teal" 
                         style={{ fontSize: '0.8rem', padding: '7px 14px', background: 'var(--grad-teal)', border: 'none', color: '#fff' }}
@@ -485,6 +495,21 @@ export default function DonorDashboard() {
                       </button>
                     )}
                   </div>
+
+                  {/* Inline QR + code for accepted/NGO-accepted donations */}
+                  {donation.verificationToken && (normalizeStatusForFilter(donation.status) === 'approved' || normalizeStatusForFilter(donation.status) === 'pending') && (
+                    <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.18)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                      <div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>Verification Code</div>
+                        <strong style={{ fontFamily: 'monospace', fontSize: '1.1rem', color: 'var(--color-orange)', letterSpacing: 3 }}>{donation.verificationToken}</strong>
+                      </div>
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=56x56&data=${encodeURIComponent(JSON.stringify({ type: 'donation', donationId: donation._id, verificationCode: donation.verificationToken, token: donation.verificationToken }))}`}
+                        alt="QR"
+                        style={{ width: 56, height: 56, borderRadius: 4, background: '#fff', padding: 2 }}
+                      />
+                    </div>
+                  )}
                 </div>
               ))
             )}

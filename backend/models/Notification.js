@@ -33,7 +33,7 @@ const notificationSchema = new mongoose.Schema(
     },
     entityType: {
       type: String,
-      enum: ['Donation', 'NgoRequest', 'User', 'Ngo', 'TaxCertificate', 'System'],
+      enum: ['Donation', 'FoodInfo', 'NgoRequest', 'NgoFoodRequest', 'User', 'Ngo', 'TaxCertificate', 'System'],
       required: true
     },
     entityId: {

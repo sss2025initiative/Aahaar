@@ -16,6 +16,7 @@ import {
   updateFoodInfoQuantity,
   triggerInReview,
   completeFoodDonation,
+  assignNgoToDonation,
   getAllNgoFoodRequests,
   approveNgoFoodRequest,
   rejectNgoFoodRequest,
@@ -41,6 +42,7 @@ router.route('/food-donations/:donationId/approve-inreview').put(triggerInReview
 router.route('/food-donations/:donationId/quantity-updatation').put(updateFoodInfoQuantity);
 router.route('/food-donations/:donationId/reject').put(rejectFoodDonation);
 router.route('/food-donations/:donationId/done').put(completeFoodDonation);
+router.route('/food-donations/:donationId/assign-ngo').put(assignNgoToDonation);
 router.route('/getFoodInfoByCity').get(protect, getFoodInfoByCity);
 
 // Admin NGO management routes

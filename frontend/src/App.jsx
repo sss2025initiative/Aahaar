@@ -59,90 +59,109 @@ function AppRoutes() {
     };
   }, [user, dispatch]);
 
-  // Periodic 5-minute check for pending processes
+  // Periodic checks: pending items + critical NGO request alerts
   useEffect(() => {
     if (!user) return;
+
+    // Track last shown critical alerts to avoid spamming same request
+    const shownCriticalIds = new Set();
 
     const runPendingCheck = async () => {
       try {
         if (user.isAdmin) {
-          // Admin checks: pending NGO food requests and pending food donations
           const [resRequests, resDonations] = await Promise.all([
             api.get('/aahar/admin/ngo-food-requests'),
             api.get('/aahar/admin/getFoodInfoByCity')
           ]);
           const pendingReqs = (resRequests.data?.requests || []).filter(r => r.status === 'pending');
           const pendingDonations = (resDonations.data?.foodInfo || []).filter(d => d.status === 'pending');
-          
           if (pendingReqs.length > 0 || pendingDonations.length > 0) {
             const parts = [];
-            if (pendingReqs.length > 0) {
-              parts.push(`${pendingReqs.length} pending NGO food request${pendingReqs.length > 1 ? 's' : ''}`);
-            }
-            if (pendingDonations.length > 0) {
-              parts.push(`${pendingDonations.length} pending food donation${pendingDonations.length > 1 ? 's' : ''}`);
-            }
-            const message = `⚠️ Action Needed: You have ${parts.join(' and ')} awaiting your approval.`;
-            showToast(message, 'warning');
+            if (pendingReqs.length > 0) parts.push(`${pendingReqs.length} pending NGO food request${pendingReqs.length > 1 ? 's' : ''}`);
+            if (pendingDonations.length > 0) parts.push(`${pendingDonations.length} pending food donation${pendingDonations.length > 1 ? 's' : ''}`);
+            showToast(`⚠️ Action Needed: You have ${parts.join(' and ')} awaiting your approval.`, 'warning');
           }
         } else {
-          // Regular User or NGO representative checks
           let isNgoApproved = false;
           try {
             const resNgo = await api.get('/aahar/ngo-food-requests/ngo-status');
             const ngo = resNgo.data?.ngo;
             if (ngo) {
+              isNgoApproved = ngo.isApproved;
               if (!ngo.isApproved) {
                 showToast('ℹ️ NGO Status: Your NGO registration is currently pending admin approval.', 'info');
-              } else {
-                isNgoApproved = true;
               }
             }
-          } catch {
-            // ignore
-          }
+          } catch { /* ignore */ }
 
           if (isNgoApproved) {
-            // Check for direct donations assigned to their NGO that are approved and ready for pickup
-            try {
-              const resAssigned = await api.get('/aahar/foodInfo/my-assigned-donations');
-              const assigned = resAssigned.data?.donations || [];
-              const pendingPickups = assigned.filter(d => d.status === 'approved');
-              if (pendingPickups.length > 0) {
-                showToast(`🚚 Pickup Alert: You have ${pendingPickups.length} approved direct food donation${pendingPickups.length > 1 ? 's' : ''} ready for pickup.`, 'warning');
-              }
-            } catch {
-              // ignore
+            const resAssigned = await api.get('/aahar/foodInfo/my-assigned-donations');
+            const assigned = resAssigned.data?.donations || [];
+            const pendingAccept = assigned.filter(d => {
+              const s = (d.status || '').replace(/_/g, '').toUpperCase();
+              return s === 'PENDINGNGOACCEPTANCE';
+            });
+            const readyPickup = assigned.filter(d => {
+              const s = (d.status || '').replace(/_/g, '').toUpperCase();
+              return s === 'NGOACCEPTED' || s === 'APPROVED' || s === 'REQUESTACCEPTED';
+            });
+            if (pendingAccept.length > 0) {
+              showToast(`🎁 ${pendingAccept.length} direct donation${pendingAccept.length > 1 ? 's' : ''} awaiting your acceptance in NGO Portal → Direct Donations.`, 'warning');
+            }
+            if (readyPickup.length > 0) {
+              showToast(`🚚 ${readyPickup.length} donation${readyPickup.length > 1 ? 's are' : ' is'} accepted and ready for pickup. Verify on NGO Portal.`, 'info');
             }
           } else {
-            // Regular User / Donor checks
-            // 1. Check if Aadhaar is uploaded but not verified yet
             if (!user.isVerified && user.adharVerificationDocument) {
               showToast('ℹ️ Verification Update: Your Aadhaar document review is in progress by Admin.', 'info');
             }
-
-            // 2. Check if there are active NGO food requests nearby
             const resActive = await api.get('/aahar/ngo-food-requests/active');
             const activeList = resActive.data?.requests || [];
             const donorId = user._id || user.id;
             const filteredActive = activeList.filter(r => r.requestedBy !== donorId && r.requestedBy?._id !== donorId);
-            
             if (filteredActive.length > 0) {
-              showToast(`🌾 Food Request Alert: There are ${filteredActive.length} active NGO food needs in your city. Fulfill a request to support the community!`, 'info');
+              showToast(`🌾 ${filteredActive.length} active NGO food need${filteredActive.length > 1 ? 's' : ''} in your area. Help fulfill a request!`, 'info');
             }
           }
         }
       } catch (err) {
-        console.error('Failed to run periodic pending processes check:', err);
+        console.error('Periodic check error:', err);
       }
     };
 
-    // Run check immediately on mount/login
-    runPendingCheck();
+    // Critical NGO alert: runs every 1 minute, only for critical urgency requests
+    const runCriticalCheck = async () => {
+      try {
+        const res = await api.get('/aahar/ngo-food-requests/active');
+        const all = res.data?.requests || [];
+        const critical = all.filter(r => r.urgencyLevel === 'critical' || r.urgencyLevel === 'high');
+        critical.forEach(r => {
+          if (!shownCriticalIds.has(r._id)) {
+            shownCriticalIds.add(r._id);
+            const ngoName = r.ngoId?.ngoName || 'An NGO';
+            const items = (r.foodItemsNeeded || []).map(i => `${i.foodName} (${i.quantity}${i.quantityType})`).join(', ');
+            showToast(
+              `🚨 CRITICAL: ${ngoName} urgently needs food — ${items}. Help now!`,
+              r.urgencyLevel === 'critical' ? 'error' : 'warning',
+              8000
+            );
+          }
+        });
+        // Clear IDs that are no longer active so they can re-alert next cycle
+        const activeIds = new Set(critical.map(r => r._id));
+        shownCriticalIds.forEach(id => { if (!activeIds.has(id)) shownCriticalIds.delete(id); });
+      } catch { /* ignore */ }
+    };
 
-    // Set interval for every 5 minutes (300000 ms)
-    const interval = setInterval(runPendingCheck, 300000);
-    return () => clearInterval(interval);
+    runPendingCheck();
+    runCriticalCheck();
+
+    const pendingInterval = setInterval(runPendingCheck, 300000); // 5 minutes
+    const criticalInterval = setInterval(runCriticalCheck, 60000);  // 1 minute
+    return () => {
+      clearInterval(pendingInterval);
+      clearInterval(criticalInterval);
+    };
   }, [user]);
 
   return (

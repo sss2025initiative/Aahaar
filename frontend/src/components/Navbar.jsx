@@ -115,7 +115,10 @@ export default function Navbar() {
       } else if (hasNgo) {
         const res = await api.get('/aahar/foodInfo/my-assigned-donations');
         const list = res.data?.donations || [];
-        setActiveRequests(list.filter(d => d.status === 'approved').map(d => ({ ...d, type: 'donation' })));
+        setActiveRequests(list.filter(d => {
+          const s = (d.status || '').replace(/_/g, '').toUpperCase();
+          return s === 'PENDINGNGOACCEPTANCE' || s === 'NGOACCEPTED' || s === 'APPROVED' || s === 'REQUESTACCEPTED';
+        }).map(d => ({ ...d, type: 'donation' })));
       } else {
         const res = await api.get('/aahar/ngo-food-requests/active');
         const list = res.data?.requests || [];

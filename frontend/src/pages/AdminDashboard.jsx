@@ -8,6 +8,7 @@ import StatusBadge from '../components/StatusBadge';
 const TABS = [
   { id: 'overview', icon: '📊', label: 'Overview' },
   { id: 'donations', icon: '🍱', label: 'Donations' },
+  { id: 'direct-donations', icon: '🎁', label: 'Direct Donations' },
   { id: 'users', icon: '👥', label: 'Users' },
   { id: 'ngos', icon: '🏢', label: 'NGOs' },
   { id: 'ngo-requests', icon: '📋', label: 'NGO Requests' },
@@ -119,6 +120,41 @@ function ReviewDetailsModal({ donation, onApprove, onReject, onMarkAsDone, onClo
               </div>
             </div>
           </div>
+
+          {/* Donor details block if available */}
+          {(() => {
+            const donor = donation.foodItemDetails?.[0]?.donorId;
+            if (!donor || typeof donor !== 'object') return null;
+            return (
+              <div style={{ background: 'rgba(249,115,22,0.04)', border: '1px solid rgba(249,115,22,0.15)', borderRadius: 8, padding: '12px 14px', fontSize: '0.85rem' }}>
+                <h4 style={{ fontSize: '0.9rem', color: 'var(--color-orange)', fontWeight: 700, margin: '0 0 8px' }}>👤 Donor Info</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, color: 'var(--text-secondary)' }}>
+                  <div>Name: <strong style={{ color: 'var(--text-primary)' }}>{donor.firstName} {donor.surname}</strong></div>
+                  <div>Email: <strong style={{ color: 'var(--text-primary)' }}>{donor.email}</strong></div>
+                  {donor.phone && <div>Phone: <strong style={{ color: 'var(--text-primary)' }}>📞 {donor.phone}</strong></div>}
+                  <div>Verified: <strong style={{ color: donor.isVerified ? '#4ade80' : '#f87171' }}>{donor.isVerified ? '✅ Yes' : '❌ No'}</strong></div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* NGO details block if available */}
+          {(() => {
+            const ngo = typeof donation.ngoPreference === 'object' && donation.ngoPreference?._id ? donation.ngoPreference : null;
+            if (!ngo) return null;
+            return (
+              <div style={{ background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: 8, padding: '12px 14px', fontSize: '0.85rem' }}>
+                <h4 style={{ fontSize: '0.9rem', color: 'var(--color-teal)', fontWeight: 700, margin: '0 0 8px' }}>🏢 Assigned NGO</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, color: 'var(--text-secondary)' }}>
+                  <div>NGO: <strong style={{ color: 'var(--text-primary)' }}>{ngo.ngoName}</strong></div>
+                  <div>Email: <strong style={{ color: 'var(--text-primary)' }}>{ngo.ngoEmail}</strong></div>
+                  {ngo.ngoPhone && <div>Phone: <strong style={{ color: 'var(--text-primary)' }}>📞 {ngo.ngoPhone}</strong></div>}
+                  <div>Location: <strong style={{ color: 'var(--text-primary)' }}>📍 {ngo.ngoCity}</strong></div>
+                  <div>Status: <strong style={{ color: ngo.isApproved ? '#4ade80' : '#fbbf24' }}>{ngo.isApproved ? '✅ Approved' : '⏳ Pending'}</strong></div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Food Items List */}
           <div>
@@ -620,6 +656,7 @@ export default function AdminDashboard() {
   const [ngoRejectModal, setNgoRejectModal] = useState(null);
   const [reviewDonation, setReviewDonation] = useState(null);
   const [donationFilter, setDonationFilter] = useState(() => location.state?.filter || 'pending');
+  const [directDonationFilter, setDirectDonationFilter] = useState('all');
   const [ngoRequestFilter, setNgoRequestFilter] = useState(() => location.state?.ngoRequestFilter || 'pending');
   const [ngoFilter, setNgoFilter] = useState('all');
   const [userSearch, setUserSearch] = useState('');
@@ -767,7 +804,26 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => { await logout(); showToast('Logged out', 'success'); navigate('/'); };
 
-  const filteredDonations = donationFilter === 'all' ? donations : donations.filter(d => d.status === donationFilter);
+  const filteredDonations = donationFilter === 'all' ? donations : donations.filter(d => {
+    if (donationFilter === 'pending') {
+      return d.status === 'pending' || d.status === 'PENDING_NGO_ACCEPTANCE';
+    }
+    if (donationFilter === 'approved') {
+      return d.status === 'approved' || d.status === 'NGO_ACCEPTED' || d.status === 'REQUEST_ACCEPTED';
+    }
+    if (donationFilter === 'done') {
+      return d.status === 'done' || d.status === 'COMPLETED';
+    }
+    return d.status === donationFilter;
+  });
+  const directDonations = donations.filter(d => {
+    const ngo = d.ngoPreference;
+    // Include if ngoPreference is a populated object OR a valid 24-char ObjectId string
+    if (!ngo || ngo === 'random') return false;
+    if (typeof ngo === 'object' && (ngo._id || ngo.ngoName)) return true;
+    if (typeof ngo === 'string' && /^[a-f\d]{24}$/i.test(ngo)) return true;
+    return false;
+  });
   const filteredUsers = userSearch ? users.filter(u => `${u.firstName} ${u.surname} ${u.email}`.toLowerCase().includes(userSearch.toLowerCase())) : users;
   const filteredNgoRequests = ngoRequestFilter === 'all' ? ngoRequests : ngoRequests.filter(r => r.status === ngoRequestFilter);
 
@@ -809,6 +865,17 @@ export default function AdminDashboard() {
               {t.id === 'users' && users.length > 0 && tab !== 'users' && (
                 <span style={{ marginLeft: 'auto', background: 'rgba(6,182,212,0.15)', color: 'var(--color-teal)', fontSize: '0.72rem', fontWeight: 700, padding: '1px 7px', borderRadius: 99 }}>
                   {users.length}
+                </span>
+              )}
+              {t.id === 'direct-donations' && directDonations.filter(d => {
+                const s = (d.status || '').replace(/_/g, '').toUpperCase();
+                return s === 'PENDINGNGOACCEPTANCE' || s === 'NGOACCEPTED' || s === 'APPROVED';
+              }).length > 0 && tab !== 'direct-donations' && (
+                <span style={{ marginLeft: 'auto', background: 'rgba(6,182,212,0.15)', color: 'var(--color-teal)', fontSize: '0.72rem', fontWeight: 700, padding: '1px 7px', borderRadius: 99 }}>
+                  {directDonations.filter(d => {
+                    const s = (d.status || '').replace(/_/g, '').toUpperCase();
+                    return s === 'PENDINGNGOACCEPTANCE' || s === 'NGOACCEPTED' || s === 'APPROVED';
+                  }).length}
                 </span>
               )}
               {t.id === 'ngos' && ngos.filter(n => !n.isApproved).length > 0 && tab !== 'ngos' && (
@@ -881,6 +948,7 @@ export default function AdminDashboard() {
               {{
                 overview: 'Platform-wide statistics and health indicators',
                 donations: 'Review, approve, and manage all food donation submissions',
+                'direct-donations': 'All donations assigned directly to NGOs — full donor, NGO and status details',
                 users: 'Manage user accounts, roles, and verification status',
                 ngos: 'Review and approve NGO registrations in your city',
                 'ngo-requests': 'Review and fulfill food requests from approved NGOs',
@@ -1026,7 +1094,12 @@ export default function AdminDashboard() {
                   {f === 'done' ? 'Completed' : f.charAt(0).toUpperCase() + f.slice(1)}
                   {f !== 'all' && donations.length > 0 && (
                     <span style={{ marginLeft: 6, background: 'rgba(255,255,255,0.08)', padding: '0 6px', borderRadius: 99, fontSize: '0.7rem' }}>
-                      {donations.filter(d => d.status === f).length}
+                      {donations.filter(d => {
+                        if (f === 'pending') return d.status === 'pending' || d.status === 'PENDING_NGO_ACCEPTANCE';
+                        if (f === 'approved') return d.status === 'approved' || d.status === 'NGO_ACCEPTED' || d.status === 'REQUEST_ACCEPTED';
+                        if (f === 'done') return d.status === 'done' || d.status === 'COMPLETED';
+                        return d.status === f;
+                      }).length}
                     </span>
                   )}
                 </button>
@@ -1039,8 +1112,8 @@ export default function AdminDashboard() {
             {loading ? (
               <div className="table-container">
                 <table className="admin-table">
-                  <thead><tr><th>ID</th><th>Food Items</th><th>Contact</th><th>City</th><th>Status</th><th>Actions</th></tr></thead>
-                  <tbody>{[1, 2, 3, 4, 5].map(i => <SkeletonRow key={i} cols={6} />)}</tbody>
+                  <thead><tr><th>ID</th><th>Food Items</th><th>Donor</th><th>NGO</th><th>City</th><th>Status</th><th>Actions</th></tr></thead>
+                  <tbody>{[1, 2, 3, 4, 5].map(i => <SkeletonRow key={i} cols={7} />)}</tbody>
                 </table>
               </div>
             ) : filteredDonations.length === 0 ? (
@@ -1056,62 +1129,276 @@ export default function AdminDashboard() {
                     <tr>
                       <th>Donation ID</th>
                       <th>Food Items</th>
-                      <th>Contact</th>
+                      <th>Donor</th>
+                      <th>NGO Assigned</th>
                       <th>City</th>
                       <th>Status</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredDonations.map(d => (
-                      <tr key={d._id}>
-                        <td>
-                          <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.04)', padding: '2px 8px', borderRadius: 4 }}>
-                            #{String(d._id).slice(-8).toUpperCase()}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 200 }}>
-                            {(d.foodItemDetails || []).slice(0, 2).map((item, i) => (
-                              <span key={i} style={{ background: 'rgba(249,115,22,0.1)', color: 'var(--color-orange)', padding: '2px 8px', borderRadius: 99, fontSize: '0.72rem', fontWeight: 600 }}>
-                                {item.foodName}
-                              </span>
-                            ))}
-                            {(d.foodItemDetails || []).length > 2 && (
-                              <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>+{d.foodItemDetails.length - 2} more</span>
+                    {filteredDonations.map(d => {
+                      const donor = d.foodItemDetails?.[0]?.donorId;
+                      const ngo = typeof d.ngoPreference === 'object' && d.ngoPreference?._id ? d.ngoPreference : null;
+                      return (
+                        <tr key={d._id}>
+                          <td>
+                            <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.04)', padding: '2px 8px', borderRadius: 4 }}>
+                              #{String(d._id).slice(-8).toUpperCase()}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 160 }}>
+                              {(d.foodItemDetails || []).slice(0, 2).map((item, i) => (
+                                <span key={i} style={{ background: 'rgba(249,115,22,0.1)', color: 'var(--color-orange)', padding: '2px 8px', borderRadius: 99, fontSize: '0.72rem', fontWeight: 600 }}>
+                                  {item.foodName} {item.quantity}{item.quantityType}
+                                </span>
+                              ))}
+                              {(d.foodItemDetails || []).length > 2 && (
+                                <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>+{d.foodItemDetails.length - 2} more</span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '0.82rem' }}>
+                            {donor ? (
+                              <div>
+                                <div style={{ fontWeight: 600 }}>{donor.firstName} {donor.surname}</div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{donor.email}</div>
+                                {donor.phone && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>📞 {donor.phone}</div>}
+                              </div>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{d.contactDetails?.contactPersonName || '—'}</span>
                             )}
-                          </div>
-                        </td>
-                        <td style={{ fontSize: '0.85rem' }}>{d.contactPersonName || d.contactDetails?.contactPersonName || '—'}</td>
-                        <td style={{ fontSize: '0.85rem' }}>{d.city || d.contactDetails?.city || '—'}</td>
-                        <td><StatusBadge status={(d.status === 'pending' && d.adminInReview) ? 'inreview' : d.status} /></td>
-                        <td>
-                          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                            <ActionBtn icon="🔍" label="Review" onClick={() => {
-                              setReviewDonation(d);
-                              if (!d.adminInReview) {
-                                api.put(`/aahar/admin/food-donations/${d._id}/approve-inreview`).then(() => fetchDonations()).catch(() => {});
-                              }
-                            }} />
-                            {d.status === 'pending' && (
-                              <>
-                                <ActionBtn icon="✅" label="Approve" onClick={() => approveDonation(d._id)} variant="teal" />
-                                <ActionBtn icon="✕" label="Reject" onClick={() => setRejectModal(d._id)} variant="danger" />
-                              </>
+                          </td>
+                          <td style={{ fontSize: '0.82rem' }}>
+                            {ngo ? (
+                              <div>
+                                <div style={{ fontWeight: 600, color: 'var(--color-teal)' }}>{ngo.ngoName}</div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>📍 {ngo.ngoCity}</div>
+                              </div>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>General / Auto-assign</span>
                             )}
-                            {d.status === 'approved' && (
-                              <ActionBtn icon="📦" label="Mark as Done" onClick={() => markAsDone(d._id)} variant="teal" />
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td style={{ fontSize: '0.85rem' }}>{d.contactDetails?.city || '—'}</td>
+                          <td><StatusBadge status={(d.status === 'pending' && d.adminInReview) ? 'inreview' : d.status} /></td>
+                          <td>
+                            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                              <ActionBtn icon="🔍" label="Review" onClick={() => {
+                                setReviewDonation(d);
+                                if (!d.adminInReview && d.status === 'pending') {
+                                  api.put(`/aahar/admin/food-donations/${d._id}/approve-inreview`).then(() => fetchDonations()).catch(() => {});
+                                }
+                              }} />
+                              {d.status === 'pending' && (
+                                <>
+                                  <ActionBtn icon="✅" label="Approve" onClick={() => approveDonation(d._id)} variant="teal" />
+                                  <ActionBtn icon="✕" label="Reject" onClick={() => setRejectModal(d._id)} variant="danger" />
+                                </>
+                              )}
+                              {(d.status === 'approved' || d.status === 'NGO_ACCEPTED') && (
+                                <ActionBtn icon="📦" label="Mark Done" onClick={() => markAsDone(d._id)} variant="teal" />
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
           </div>
         )}
+
+        {/* ─── DIRECT DONATIONS ─── */}
+        {tab === 'direct-donations' && (() => {
+          const normS = (s) => (s || '').replace(/_/g, '').toUpperCase();
+          const ddFilters = ['all', 'pending', 'accepted', 'completed', 'rejected'];
+          const filteredDD = directDonations.filter(d => {
+            if (directDonationFilter === 'all') return true;
+            const s = normS(d.status);
+            if (directDonationFilter === 'pending') return s === 'PENDINGNGOACCEPTANCE';
+            if (directDonationFilter === 'accepted') return s === 'NGOACCEPTED' || s === 'APPROVED' || s === 'REQUESTACCEPTED';
+            if (directDonationFilter === 'completed') return s === 'DONE' || s === 'COMPLETED';
+            if (directDonationFilter === 'rejected') return s === 'REJECTED';
+            return true;
+          });
+          const DD_STATUS = {
+            PENDINGNGOACCEPTANCE: { label: '⏳ Awaiting NGO Acceptance', bg: 'rgba(234,179,8,0.15)', color: '#fbbf24' },
+            NGOACCEPTED: { label: '🚚 Ready for Pickup', bg: 'rgba(6,182,212,0.15)', color: '#22d3ee' },
+            APPROVED: { label: '🚚 Ready for Pickup', bg: 'rgba(6,182,212,0.15)', color: '#22d3ee' },
+            REQUESTACCEPTED: { label: '🚚 Ready for Pickup', bg: 'rgba(6,182,212,0.15)', color: '#22d3ee' },
+            DONE: { label: '✅ Completed', bg: 'rgba(34,197,94,0.15)', color: '#4ade80' },
+            COMPLETED: { label: '✅ Completed', bg: 'rgba(34,197,94,0.15)', color: '#4ade80' },
+            REJECTED: { label: '❌ Rejected', bg: 'rgba(239,68,68,0.15)', color: '#f87171' },
+          };
+          return (
+            <div style={{ animation: 'fadeInUp 0.3s ease' }}>
+              <div className="filter-bar" style={{ marginBottom: 20 }}>
+                {ddFilters.map(f => (
+                  <button key={f} className={`filter-btn ${directDonationFilter === f ? 'filter-btn--active' : ''}`} onClick={() => setDirectDonationFilter(f)}>
+                    {f === 'all' ? 'All' : f === 'pending' ? 'Awaiting Acceptance' : f.charAt(0).toUpperCase() + f.slice(1)}
+                    {f !== 'all' && (
+                      <span style={{ marginLeft: 6, background: 'rgba(255,255,255,0.08)', padding: '0 6px', borderRadius: 99, fontSize: '0.7rem' }}>
+                        {directDonations.filter(d => {
+                          const s = normS(d.status);
+                          if (f === 'pending') return s === 'PENDINGNGOACCEPTANCE';
+                          if (f === 'accepted') return s === 'NGOACCEPTED' || s === 'APPROVED' || s === 'REQUESTACCEPTED';
+                          if (f === 'completed') return s === 'DONE' || s === 'COMPLETED';
+                          if (f === 'rejected') return s === 'REJECTED';
+                          return true;
+                        }).length}
+                      </span>
+                    )}
+                  </button>
+                ))}
+                <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{filteredDD.length} result(s)</span>
+              </div>
+
+              {filteredDD.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-state__icon">🎁</div>
+                  <h3 className="empty-state__title">No direct donations</h3>
+                  <p className="empty-state__text">No donations assigned directly to NGOs found.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {filteredDD.map((d, idx) => {
+                    const donor = d.foodItemDetails?.[0]?.donorId;
+                    const ngo = typeof d.ngoPreference === 'object' && d.ngoPreference?._id ? d.ngoPreference : null;
+                    const sNorm = normS(d.status);
+                    const statusInfo = DD_STATUS[sNorm] || { label: d.status, bg: 'rgba(234,179,8,0.15)', color: '#fbbf24' };
+                    return (
+                      <div key={d._id} style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: '20px 24px', borderLeft: `4px solid ${statusInfo.color}`, animation: 'fadeInUp 0.3s ease both', animationDelay: `${idx * 0.05}s` }}>
+                        {/* Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+                          <div>
+                            <div style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.04)', padding: '2px 8px', borderRadius: 4, display: 'inline-block', marginBottom: 6 }}>
+                              #{String(d._id).slice(-10).toUpperCase()}
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                              📅 {new Date(d.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 99, fontSize: '0.78rem', fontWeight: 700, background: statusInfo.bg, color: statusInfo.color }}>
+                            {statusInfo.label}
+                          </span>
+                        </div>
+
+                        {/* Food Items */}
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-orange)', marginBottom: 8 }}>
+                            🍱 Food Items ({(d.foodItemDetails || []).length})
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {(d.foodItemDetails || []).map((item, i) => (
+                              <span key={i} style={{ background: 'rgba(249,115,22,0.1)', color: 'var(--color-orange)', padding: '3px 10px', borderRadius: 99, fontSize: '0.75rem', fontWeight: 600 }}>
+                                {item.foodName} · {item.quantity}{item.quantityType} ({item.category})
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Donor and NGO info in a 2-col grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                          {/* Donor Info */}
+                          <div style={{ background: 'rgba(249,115,22,0.04)', border: '1px solid rgba(249,115,22,0.15)', borderRadius: 8, padding: '12px 14px', fontSize: '0.82rem' }}>
+                            <div style={{ fontWeight: 700, color: 'var(--color-orange)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              👤 Donor Details
+                            </div>
+                            {donor ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, color: 'var(--text-secondary)' }}>
+                                <div>Name: <strong style={{ color: 'var(--text-primary)' }}>{donor.firstName} {donor.surname}</strong></div>
+                                <div>Email: <strong style={{ color: 'var(--text-primary)' }}>{donor.email}</strong></div>
+                                {donor.phone && <div>Phone: <strong style={{ color: 'var(--text-primary)' }}>📞 {donor.phone}</strong></div>}
+                                {donor.city && <div>City: <strong style={{ color: 'var(--text-primary)' }}>📍 {donor.city}</strong></div>}
+                                <div>Verified: <strong style={{ color: donor.isVerified ? '#4ade80' : '#f87171' }}>{donor.isVerified ? '✓ Yes' : '✕ No'}</strong></div>
+                              </div>
+                            ) : (
+                              <div style={{ color: 'var(--text-secondary)' }}>
+                                <div>Contact: <strong style={{ color: 'var(--text-primary)' }}>{d.contactDetails?.contactPersonName || '—'}</strong></div>
+                                <div>Phone: <strong style={{ color: 'var(--text-primary)' }}>{d.contactDetails?.phoneNumber || '—'}</strong></div>
+                                <div>Email: <strong style={{ color: 'var(--text-primary)' }}>{d.contactDetails?.email || '—'}</strong></div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* NGO Info */}
+                          <div style={{ background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: 8, padding: '12px 14px', fontSize: '0.82rem' }}>
+                            <div style={{ fontWeight: 700, color: 'var(--color-teal)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              🏢 Assigned NGO
+                            </div>
+                            {ngo ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, color: 'var(--text-secondary)' }}>
+                                <div>NGO: <strong style={{ color: 'var(--text-primary)' }}>{ngo.ngoName}</strong></div>
+                                <div>Email: <strong style={{ color: 'var(--text-primary)' }}>{ngo.ngoEmail}</strong></div>
+                                {ngo.ngoPhone && <div>Phone: <strong style={{ color: 'var(--text-primary)' }}>📞 {ngo.ngoPhone}</strong></div>}
+                                <div>Location: <strong style={{ color: 'var(--text-primary)' }}>📍 {ngo.ngoCity}, {ngo.ngoState}</strong></div>
+                                <div>Approved: <strong style={{ color: ngo.isApproved ? '#4ade80' : '#f87171' }}>{ngo.isApproved ? '✅ Yes' : '⏳ No'}</strong></div>
+                              </div>
+                            ) : (
+                              <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>General donation — no NGO assigned</div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Pickup Address + Token */}
+                        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 14, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                          <span>📍 Pickup: {d.contactDetails?.fullAddress}, {d.contactDetails?.city}</span>
+                        </div>
+
+                        {/* Verification token */}
+                        {d.verificationToken && (
+                          <div style={{ padding: '8px 14px', background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.18)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
+                            <div>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>Verification Code</div>
+                              <strong style={{ fontFamily: 'monospace', fontSize: '1.1rem', color: 'var(--color-orange)', letterSpacing: 3 }}>{d.verificationToken}</strong>
+                            </div>
+                            <img
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=56x56&data=${encodeURIComponent(JSON.stringify({ type: 'donation', donationId: d._id, verificationCode: d.verificationToken, token: d.verificationToken }))}`}
+                              alt="QR"
+                              style={{ width: 56, height: 56, borderRadius: 4, background: '#fff', padding: 2 }}
+                            />
+                          </div>
+                        )}
+
+                        {/* Completion info */}
+                        {(sNorm === 'DONE' || sNorm === 'COMPLETED') && (
+                          <div style={{ padding: '8px 12px', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)', borderRadius: 8, fontSize: '0.82rem', color: '#4ade80', marginBottom: 14 }}>
+                            ✅ Completed at: {d.completedAt ? new Date(d.completedAt).toLocaleString('en-IN') : '—'}
+                            {d.pickedUpByNgo?.ngoName && ` · Picked up by ${d.pickedUpByNgo.ngoName}`}
+                          </div>
+                        )}
+
+                        {/* Rejection reason */}
+                        {sNorm === 'REJECTED' && d.rejectedReason && (
+                          <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 8, fontSize: '0.82rem', color: '#f87171', marginBottom: 14 }}>
+                            ⚠️ Rejection reason: {d.rejectedReason}
+                          </div>
+                        )}
+
+                        {/* Admin Actions */}
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: '1px solid var(--border-color)', paddingTop: 12 }}>
+                          <ActionBtn icon="🔍" label="Full Review" onClick={() => setReviewDonation(d)} />
+                          {d.status === 'pending' && (
+                            <>
+                              <ActionBtn icon="✅" label="Approve" onClick={() => approveDonation(d._id)} variant="teal" />
+                              <ActionBtn icon="✕" label="Reject" onClick={() => setRejectModal(d._id)} variant="danger" />
+                            </>
+                          )}
+                          {(sNorm === 'NGOACCEPTED' || sNorm === 'APPROVED' || sNorm === 'REQUESTACCEPTED') && (
+                            <ActionBtn icon="📦" label="Mark as Done" onClick={() => markAsDone(d._id)} variant="teal" />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ─── USERS ─── */}
         {tab === 'users' && (

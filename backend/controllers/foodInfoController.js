@@ -2,6 +2,7 @@ import FoodInfo from "../models/foodInfoModel.js";
 import Ngo from "../models/ngoModel.js";
 import NgoFoodRequest from "../models/ngoFoodRequestModel.js";
 import asyncHandler from "express-async-handler";
+import mongoose from "mongoose";
 import { uploadFoodImages as uploadFoodImagesMiddleware, getFileUrl } from "../s3Config.js";
 import User from "../models/userModel.js";
 import { notify } from "../services/notification.service.js";
@@ -88,10 +89,15 @@ const CreateFoodInfo=asyncHandler(async(req , res)=>{
     const isDirectDonation = ngoPreference && ngoPreference !== 'random';
     const initialStatus = isDirectDonation ? 'PENDING_NGO_ACCEPTANCE' : 'pending';
 
+    // Cast ngoPreference to ObjectId when it's a valid NGO ID (not 'random')
+    const ngoPreferenceValue = isDirectDonation 
+        ? new mongoose.Types.ObjectId(ngoPreference) 
+        : ngoPreference;
+
     const foodInfo=await FoodInfo.create({
         foodItemDetails,
         contactDetails,
-        ngoPreference,
+        ngoPreference: ngoPreferenceValue,
         verificationToken,
         status: initialStatus
     })
@@ -280,8 +286,7 @@ const verifyDonationPickup = asyncHandler(async (req, res) => {
         }
 
         // If donation was made to a specific NGO, make sure it matches the scanning NGO
-        if (donation.ngoPreference.toString() !== userNgo._id.toString()) {
-            res.status(403);
+        if (donation.ngoPreference.toString() !== userNgo._id.toString()) {            res.status(403);
             throw new Error("This donation is assigned to a different NGO. You are not authorized to verify it.");
         }
     }
@@ -384,9 +389,13 @@ const getNgoAssignedDonations = asyncHandler(async (req, res) => {
         });
     }
 
+    const ngoIdStr = userNgo._id.toString();
+
+    // Query handles both ObjectId and string-stored ngoPreference (legacy data)
     const donations = await FoodInfo.find({
         $or: [
             { ngoPreference: userNgo._id },
+            { ngoPreference: ngoIdStr },
             { pickedUpByNgo: userNgo._id }
         ]
     }).sort({ createdAt: -1 })

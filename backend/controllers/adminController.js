@@ -48,6 +48,55 @@ const getCityRegex = (city) => {
   return new RegExp(`^${trimmed}$`, 'i');
 };
 
+//getting all food info by city (admin)
+const getFoodInfoByCity=asyncHandler(async(req ,res)=>{
+    const city = req.user.city;
+    const cityRegex = getCityRegex(city);
+    
+    // ngoPreference is Mixed type (can be 'random' string or an ObjectId stored as string)
+    // so we can't use .populate() directly — fetch raw then manually resolve NGO
+    const rawDonations = await FoodInfo.find({
+        "contactDetails.city": { $regex: cityRegex }
+    }).sort({ createdAt: -1 })
+      .populate({ path: 'foodItemDetails.donorId', select: 'firstName surname email phone city isVerified' })
+      .populate({ path: 'pickedUpByNgo', select: 'ngoName ngoEmail ngoPhone ngoCity isApproved' })
+      .populate({ path: 'approvedBy', select: 'firstName surname email' })
+      .populate({ path: 'rejectedBy', select: 'firstName surname email' })
+      .lean();
+
+    // Collect all unique valid NGO ObjectId strings to batch-fetch
+    const ngoIdSet = new Set();
+    for (const d of rawDonations) {
+        const ref = d.ngoPreference;
+        if (ref && ref !== 'random' && typeof ref === 'string' && /^[a-f\d]{24}$/i.test(ref)) {
+            ngoIdSet.add(ref);
+        }
+    }
+
+    // Batch fetch all referenced NGOs
+    const ngoMap = {};
+    if (ngoIdSet.size > 0) {
+        const ngos = await Ngo.find({ _id: { $in: [...ngoIdSet] } })
+            .select('ngoName ngoEmail ngoPhone ngoCity ngoState ngoAddress isApproved')
+            .lean();
+        ngos.forEach(n => { ngoMap[n._id.toString()] = n; });
+    }
+
+    // Attach populated NGO to each donation
+    const foodInfo = rawDonations.map(d => {
+        const ref = d.ngoPreference;
+        if (ref && typeof ref === 'string' && ngoMap[ref]) {
+            d.ngoPreference = ngoMap[ref];
+        }
+        return d;
+    });
+
+    return res.status(200).json({
+        foodInfo,
+        message: "Food info fetched successfully"
+    });
+})
+
 //getting users based on their cities
 const getUsersBasedOnCity = asyncHandler(async (req, res) => {
     const userCity = req.user.city;
@@ -122,20 +171,6 @@ const makeUserAdmin = asyncHandler(async (req, res) => {
     }
   });
 });
-
-// @desc    Get food info by city
-const getFoodInfoByCity=asyncHandler(async(req ,res)=>{
-    const city = req.user.city;
-    const cityRegex = getCityRegex(city);
-    const foodInfo=await FoodInfo.find({
-        "contactDetails.city": { $regex: cityRegex }
-    }).sort({ createdAt: -1 });
-    return res.status(200).json({
-        foodInfo,
-        message: "Food info fetched successfully"
-    });
-})
-
 
 // @desc    Remove admin privileges from user
 // @route   PUT /api/admin/users/:userId/remove-admin
@@ -395,12 +430,13 @@ const completeFoodDonation = asyncHandler(async (req, res) => {
 
   await donation.save();
 
+  // Notify donor
   const donorId = donation.foodItemDetails?.[0]?.donorId;
   if (donorId) {
     await notify({
       receiverId: donorId,
       receiverRole: 'donor',
-      title: 'Donation Completed',
+      title: 'Donation Completed ✅',
       message: 'Thank you! Your donation was successfully picked up and delivered.',
       type: 'DONATION_COMPLETED',
       entityType: 'FoodInfo',
@@ -409,9 +445,105 @@ const completeFoodDonation = asyncHandler(async (req, res) => {
     });
   }
 
+  // Notify assigned NGO if any
+  const ngoRef = donation.ngoPreference;
+  if (ngoRef && ngoRef !== 'random') {
+    const ngo = await Ngo.findById(ngoRef.toString());
+    if (ngo && ngo.registeredBy) {
+      await notify({
+        receiverId: ngo.registeredBy,
+        receiverRole: 'ngo',
+        title: 'Donation Pickup Complete',
+        message: `Donation assigned to ${ngo.ngoName} has been marked as completed by Admin.`,
+        type: 'DONATION_COMPLETED',
+        entityType: 'FoodInfo',
+        entityId: donation._id,
+        priority: 'medium'
+      });
+    }
+  }
+
   res.status(200).json({
     message: "Food donation marked as done successfully",
     donation
+  });
+});
+
+// @desc    Assign an approved NGO to a general (random) donation
+// @route   PUT /api/admin/food-donations/:donationId/assign-ngo
+// @access  Private/Admin
+const assignNgoToDonation = asyncHandler(async (req, res) => {
+  const { donationId } = req.params;
+  const { ngoId } = req.body;
+
+  if (!ngoId) {
+    res.status(400);
+    throw new Error("ngoId is required");
+  }
+
+  const donation = await FoodInfo.findById(donationId);
+  if (!donation) {
+    res.status(404);
+    throw new Error("Donation not found");
+  }
+
+  if (donation.status === 'done' || donation.status === 'COMPLETED' || donation.status === 'rejected') {
+    res.status(400);
+    throw new Error("Cannot assign NGO to a completed or rejected donation");
+  }
+
+  const ngo = await Ngo.findById(ngoId);
+  if (!ngo) {
+    res.status(404);
+    throw new Error("NGO not found");
+  }
+  if (!ngo.isApproved) {
+    res.status(400);
+    throw new Error("Only approved NGOs can be assigned to donations");
+  }
+
+  // Update donation with NGO assignment
+  donation.ngoPreference = ngo._id;
+  donation.status = 'PENDING_NGO_ACCEPTANCE';
+  donation.isApproved = true;
+  donation.approvedBy = req.user._id;
+  donation.approvedAt = new Date();
+  donation.adminInReview = false;
+  await donation.save();
+
+  // Notify donor
+  const donorId = donation.foodItemDetails?.[0]?.donorId;
+  if (donorId) {
+    await notify({
+      receiverId: donorId,
+      receiverRole: 'donor',
+      title: 'Donation Assigned to NGO',
+      message: `Your donation has been reviewed and assigned to ${ngo.ngoName}. They will confirm the pickup shortly.`,
+      type: 'DONATION_APPROVED',
+      entityType: 'FoodInfo',
+      entityId: donation._id,
+      priority: 'high'
+    });
+  }
+
+  // Notify the NGO representative
+  if (ngo.registeredBy) {
+    await notify({
+      receiverId: ngo.registeredBy,
+      receiverRole: 'ngo',
+      title: 'New Donation Assigned to Your NGO 🎁',
+      message: `Admin has assigned a food donation to ${ngo.ngoName}. Please accept or reject it in your Direct Donations portal.`,
+      type: 'NEW_DONATION_ASSIGNED',
+      entityType: 'FoodInfo',
+      entityId: donation._id,
+      priority: 'high'
+    });
+  }
+
+  res.status(200).json({
+    message: `Donation successfully assigned to ${ngo.ngoName}`,
+    donation,
+    ngo: { _id: ngo._id, ngoName: ngo.ngoName, ngoCity: ngo.ngoCity }
   });
 });
 
@@ -560,6 +692,7 @@ export {
   updateFoodInfoQuantity,
   triggerInReview,
   completeFoodDonation,
+  assignNgoToDonation,
   getAllNgoFoodRequests,
   approveNgoFoodRequest,
   rejectNgoFoodRequest,
