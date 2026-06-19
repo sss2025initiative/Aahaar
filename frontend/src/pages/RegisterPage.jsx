@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { showToast } from '../components/Toast';
@@ -14,17 +14,18 @@ const INDIAN_STATES = [
 ];
 
 export default function RegisterPage() {
-  const { register, uploadAadhaar, loading } = useAuth();
+  const { register, uploadAadhaar } = useAuth();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
     firstName: '', surname: '', email: '', password: '', confirmPassword: '',
-    age: '', city: '', state: '', country: 'India',
+    age: '', phone: '', city: '', state: '', country: 'India',
   });
   const [errors, setErrors] = useState({});
   const [showPass, setShowPass] = useState(false);
   const [aadhaarFile, setAadhaarFile] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -46,6 +47,8 @@ export default function RegisterPage() {
       if (!form.surname.trim()) errs.surname = 'Required';
       if (!form.age) errs.age = 'Required';
       else if (isNaN(form.age) || +form.age < 16 || +form.age > 100) errs.age = 'Enter a valid age (16–100)';
+      if (!form.phone.trim()) errs.phone = 'Required';
+      else if (!/^\+?[0-9]{10,15}$/.test(form.phone.replace(/[\s-()]/g, ''))) errs.phone = 'Enter a valid phone number (e.g. +919876543210)';
     }
     if (s === 2) {
       if (!form.city.trim()) errs.city = 'Required';
@@ -63,32 +66,64 @@ export default function RegisterPage() {
 
   const prevStep = () => setStep((s) => s - 1);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSkip = async (e) => {
+    if (e) e.preventDefault();
+    setErrors({});
+    setLoading(true);
     const result = await register({
       firstName: form.firstName,
       surname: form.surname,
-      email: form.email,
+      email: form.email.trim().toLowerCase(),
       password: form.password,
       age: Number(form.age),
+      phone: form.phone,
       city: form.city,
       state: form.state,
       country: form.country,
     });
+    setLoading(false);
+    if (result.success) {
+      showToast(`Welcome to Aahaar, ${result.user.firstName}! 🎉`, 'success');
+      navigate('/dashboard');
+    } else {
+      showToast(result.error || 'Registration failed', 'error');
+      setErrors({ submit: result.error });
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setErrors({});
+    setLoading(true);
+
+    const result = await register({
+      firstName: form.firstName,
+      surname: form.surname,
+      email: form.email.trim().toLowerCase(),
+      password: form.password,
+      age: Number(form.age),
+      phone: form.phone,
+      city: form.city,
+      state: form.state,
+      country: form.country,
+    });
+
     if (result.success) {
       if (aadhaarFile) {
         showToast('Uploading Aadhaar...', 'success');
-        const uploadResult = await uploadAadhaar(aadhaarFile);
+        const uploadResult = await uploadAadhaar(aadhaarFile, result.user);
         if (uploadResult.success) {
-          showToast(`Welcome to Aahaar! Verification requested. 🎉`, 'success');
+          showToast(`Welcome to Aahaar! Aadhaar uploaded for verification. 🎉`, 'success');
         } else {
-          showToast(`Aadhaar failed: ${uploadResult.error}. Retry on your dashboard.`, 'warning');
+          showToast(`Aadhaar upload failed: ${uploadResult.error}. You can retry from your dashboard.`, 'warning');
         }
       } else {
         showToast(`Welcome to Aahaar, ${result.user.firstName}! 🎉`, 'success');
       }
+      setLoading(false);
       navigate('/dashboard');
     } else {
+      setLoading(false);
       showToast(result.error || 'Registration failed', 'error');
       setErrors({ submit: result.error });
     }
@@ -127,7 +162,7 @@ export default function RegisterPage() {
         {/* Step Indicator */}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
           {STEPS.map((label, i) => (
-            <React.Fragment key={i}>
+            <Fragment key={i}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: '50%',
@@ -151,7 +186,7 @@ export default function RegisterPage() {
                   transition: 'background 0.3s ease',
                 }} />
               )}
-            </React.Fragment>
+            </Fragment>
           ))}
         </div>
 
@@ -224,6 +259,12 @@ export default function RegisterPage() {
                   placeholder="25" value={form.age} onChange={handleChange} min={16} max={100} />
                 {errors.age && <span className="form-error">⚠ {errors.age}</span>}
               </div>
+              <div className="form-group">
+                <label className="form-label">Phone Number</label>
+                <input name="phone" type="tel" className={`form-input ${errors.phone ? 'error' : ''}`}
+                  placeholder="+919876543210" value={form.phone} onChange={handleChange} />
+                {errors.phone && <span className="form-error">⚠ {errors.phone}</span>}
+              </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button" onClick={prevStep} className="btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: '13px' }}>← Back</button>
                 <button type="button" onClick={nextStep} className="btn-primary" style={{ flex: 2, justifyContent: 'center', padding: '13px' }}>Continue →</button>
@@ -271,9 +312,10 @@ export default function RegisterPage() {
                 <span style={{ fontSize: '3rem' }}>🛡️</span>
                 <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginTop: 10, marginBottom: 6 }}>Trust Verification</h3>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  Aahaar builds a verified donor network. Upload your Aadhaar card (PDF or image) to instantly verify your identity and expedite donation approvals.
+                  Aahaar builds a verified donor network. Please upload your Aadhaar document (PDF or Image) for manual verification by our admin team.
                 </p>
               </div>
+
               <div className="form-group" style={{ marginBottom: 20 }}>
                 <label className="form-label">Aadhaar Card (PDF / Image) *</label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -296,16 +338,24 @@ export default function RegisterPage() {
                   )}
                 </div>
               </div>
-              {errors.submit && <div className="auth-error-box">⚠️ {errors.submit}</div>}
+
+              {errors.submit && <div className="auth-error-box" style={{ color: 'var(--color-red)', fontSize: '0.82rem', marginBottom: 14, fontWeight: 600 }}>⚠️ {errors.submit}</div>}
+
               <div style={{ display: 'flex', gap: 10 }}>
-                <button type="button" onClick={prevStep} className="btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: '13px' }}>← Back</button>
+                <button type="button" onClick={prevStep} className="btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: '13px' }} disabled={loading}>← Back</button>
                 <button type="submit" className="btn-primary" disabled={loading}
                   style={{ flex: 2, justifyContent: 'center', padding: '13px' }}>
-                  {loading ? <><span className="spinner" /> Registering...</> : '🚀 Complete Registration'}
+                  {loading ? (
+                    <><span className="spinner" /> Loading...</>
+                  ) : aadhaarFile ? (
+                    'Register & Upload'
+                  ) : (
+                    'Register Account'
+                  )}
                 </button>
               </div>
               <div style={{ textAlign: 'center', marginTop: 16 }}>
-                <button type="submit" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer', textDecoration: 'underline' }} disabled={loading}>
+                <button type="button" onClick={handleSkip} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer', textDecoration: 'underline' }} disabled={loading}>
                   Skip verification for now
                 </button>
               </div>

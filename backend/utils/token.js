@@ -1,7 +1,5 @@
-<<<<<<< HEAD
 import jwt from "jsonwebtoken";
-=======
->>>>>>> santosh/main
+
 const generateToken = (res, userId) => {
     const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
         expiresIn: "30d"
@@ -9,14 +7,11 @@ const generateToken = (res, userId) => {
 
     res.cookie('jwt', token, {
         httpOnly: true,
-        sameSite: "strict",
-<<<<<<< HEAD
-=======
-        // secure: process.env.NODE_ENV === 'production',
->>>>>>> santosh/main
+        secure: process.env.NODE_ENV !== "development",
+        sameSite: process.env.NODE_ENV !== "development" ? "None" : "Lax",
         maxAge: 30 * 24 * 60 * 60 * 1000 
     });
-    
+    return token;
 }
 
 export default generateToken;

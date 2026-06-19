@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { authUser, logoutUser, registerUser, uploadAdharDocument } from "../controllers/userController.js";
 import { protect } from "../middlewares/authMiddleware.js";
 import express from "express";
@@ -15,13 +14,3 @@ router.post("/user-adhar-document", uploadDocumentsToS3.fields([
 ]),protect, uploadAdharDocument)
 
 export default router;
-=======
-import { authUser, logoutUser, registerUser } from "../controllers/userController.js";
-import { protect } from "../middlewares/authMiddleware.js";
-
-const router = express.Router();
-
-router.route("/").post(registerUser);
-router.post("/auth", authUser);
-router.post("/logout", logoutUser);
->>>>>>> santosh/main

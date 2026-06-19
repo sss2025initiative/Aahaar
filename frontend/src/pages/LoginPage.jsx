@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { showToast } from '../components/Toast';
@@ -32,10 +32,10 @@ export default function LoginPage() {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
-    const result = await login(form.email, form.password);
+    const result = await login(form.email.trim().toLowerCase(), form.password);
     if (result.success) {
       showToast(`Welcome back, ${result.user.firstName}! 🎉`, 'success');
-      navigate(result.user.isAdmin ? '/admin' : from, { replace: true });
+      navigate(result.user.isAdmin ? '/admin' : from, { replace: true, state: location.state });
     } else {
       showToast(result.error || 'Login failed', 'error');
       setErrors({ submit: result.error });
@@ -87,16 +87,6 @@ export default function LoginPage() {
 
         <h1 className="auth-card__title">Welcome Back</h1>
         <p className="auth-card__subtitle">Sign in to continue your impact</p>
-
-        {/* Demo fill */}
-        <button
-          type="button"
-          className="btn-ghost"
-          style={{ width: '100%', marginBottom: 20, justifyContent: 'center', fontSize: '0.8rem', borderStyle: 'dashed' }}
-          onClick={() => setForm({ email: 'sss.initiative.2025@gmail.com', password: 'sss@2025' })}
-        >
-          ⚡ Quick Fill — Admin Demo
-        </button>
 
         <form onSubmit={handleSubmit} noValidate>
           <div className="auth-card__fields">

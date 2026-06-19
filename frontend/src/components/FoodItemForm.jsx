@@ -1,5 +1,3 @@
-import React from 'react';
-
 const CATEGORIES = ['Fruits', 'Vegetables', 'Bakery', 'Dairy', 'Cooked Meals', 'Beverages', 'Packaged Food', 'Grains', 'Others'];
 const QTY_TYPES = ['kg', 'g', 'ml', 'l', 'pcs'];
 

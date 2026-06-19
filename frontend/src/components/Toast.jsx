@@ -1,12 +1,7 @@
-import React, { useEffect, useState } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { useEffect, useState } from 'react';
 
 const ICONS = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
-const COLORS = {
-  success: 'var(--color-green)',
-  error: 'var(--color-red)',
-  info: 'var(--color-teal)',
-  warning: 'var(--color-yellow)',
-};
 
 let toastQueue = [];
 let listeners = [];
@@ -22,6 +17,11 @@ export function showToast(message, type = 'info', duration = 4000) {
   }, duration);
 }
 
+export function dismissToast(id) {
+  toastQueue = toastQueue.filter((t) => t.id !== id);
+  listeners.forEach((fn) => fn([...toastQueue]));
+}
+
 export default function Toast() {
   const [toasts, setToasts] = useState([]);
 
@@ -33,11 +33,6 @@ export default function Toast() {
     };
   }, []);
 
-  const dismiss = (id) => {
-    toastQueue = toastQueue.filter((t) => t.id !== id);
-    setToasts([...toastQueue]);
-  };
-
   if (toasts.length === 0) return null;
 
   return (
@@ -45,14 +40,14 @@ export default function Toast() {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className="toast-item"
-          style={{ '--toast-color': COLORS[toast.type] }}
+          className={`toast toast--${toast.type}`}
+          style={{ '--duration': `${toast.duration}ms` }}
         >
-          <span className="toast-icon" style={{ color: COLORS[toast.type] }}>
+          <span className="toast__icon">
             {ICONS[toast.type]}
           </span>
-          <span className="toast-message">{toast.message}</span>
-          <button className="toast-close" onClick={() => dismiss(toast.id)}>
+          <span className="toast__message">{toast.message}</span>
+          <button className="toast__close" onClick={() => dismissToast(toast.id)}>
             ✕
           </button>
         </div>

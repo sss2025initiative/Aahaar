@@ -1,10 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-<<<<<<< HEAD
-//userSchema for user model
-=======
 
->>>>>>> santosh/main
 const userSchema = mongoose.Schema(
   {
     firstName: {
@@ -27,7 +23,6 @@ const userSchema = mongoose.Schema(
       type: String,
       required: true,
     },
-<<<<<<< HEAD
     city: {
       type: String,
       required: true,
@@ -52,43 +47,38 @@ const userSchema = mongoose.Schema(
       type: String,
       default: null,
     },
-=======
-    isAdmin: {
-      type: Boolean,
-      default: false,
-    }
->>>>>>> santosh/main
+    phone: {
+      type: String,
+      default: null,
+    },
+    fcmToken: {
+      type: String,
+      default: null,
+    },
+    profileImage: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );
-
-<<<<<<< HEAD
 
 //matching passwords
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
-=======
-// userSchema.methods.matchPassword = async function (enteredPassword) {
-//   return await bcrypt.compare(enteredPassword, this.password);
-// };
->>>>>>> santosh/main
 
 //hashing password before saving
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {
-    next();
+    return next();
   }
 
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
-<<<<<<< HEAD
-//Model creation
-=======
-
->>>>>>> santosh/main
 const User = mongoose.model("User", userSchema);
 
 export default User;

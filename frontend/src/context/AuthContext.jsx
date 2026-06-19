@@ -1,4 +1,5 @@
-import React, { createContext, useState, useCallback, useEffect } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useState, useCallback} from 'react';
 import api from '../api/axios';
 
 export const AuthContext = createContext(null);
@@ -50,7 +51,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const uploadAadhaar = useCallback(async (file) => {
+  const uploadAadhaar = useCallback(async (file, currentUser = null) => {
     setLoading(true);
     try {
       const formData = new FormData();
@@ -62,7 +63,8 @@ export function AuthProvider({ children }) {
       });
       const newDocUrl = res.data?.filesUrls?.adharVerificationDocument;
       if (newDocUrl) {
-        const updatedUser = { ...user, adharVerificationDocument: newDocUrl };
+        const activeUser = currentUser || user;
+        const updatedUser = { ...activeUser, adharVerificationDocument: newDocUrl };
         setUser(updatedUser);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
         return { success: true, user: updatedUser };

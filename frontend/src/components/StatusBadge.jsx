@@ -1,10 +1,33 @@
-import React from 'react';
-
 const STATUS_CONFIG = {
   pending: {
     label: 'Pending',
     className: 'badge-pending',
     dot: true,
+  },
+  pendingngoacceptance: {
+    label: 'Pending NGO Acceptance',
+    className: 'badge-pending',
+    dot: true,
+  },
+  ngoaccepted: {
+    label: 'NGO Accepted',
+    className: 'badge-approved',
+    dot: false,
+  },
+  requestaccepted: {
+    label: 'Request Accepted',
+    className: 'badge-approved',
+    dot: false,
+  },
+  pickupinprogress: {
+    label: 'Pickup In Progress',
+    className: 'badge-inreview',
+    dot: true,
+  },
+  verified: {
+    label: 'Verified',
+    className: 'badge-approved',
+    dot: false,
   },
   approved: {
     label: 'Approved',
@@ -20,6 +43,16 @@ const STATUS_CONFIG = {
     label: 'In Review',
     className: 'badge-inreview',
     dot: true,
+  },
+  done: {
+    label: 'Completed',
+    className: 'badge-done',
+    dot: false,
+  },
+  completed: {
+    label: 'Completed',
+    className: 'badge-done',
+    dot: false,
   },
 };
 

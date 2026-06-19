@@ -1,6 +1,6 @@
 import express from 'express';
 import { uploadNgoDocuments } from '../s3Config.js';
-import { ngoDetailsController, uploadNgoDocumentsContrller } from '../controllers/ngoController.js';
+import { ngoDetailsController, uploadNgoDocumentsContrller, getNgoDetailsBasedOnCity, getNgoByIdController } from '../controllers/ngoController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
@@ -12,4 +12,7 @@ router.post("/aahaarNgoDocumentsUpload", uploadNgoDocuments.fields([
 ]),protect, uploadNgoDocumentsContrller)
 
 router.post("/aahaarNgoDetails", protect, ngoDetailsController)
+router.get("/city/:ngoCity", protect, getNgoDetailsBasedOnCity)
+router.get("/:id", protect, getNgoByIdController)
+
 export default router;

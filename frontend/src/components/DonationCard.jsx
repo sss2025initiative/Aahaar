@@ -1,8 +1,7 @@
-import React from 'react';
 import StatusBadge from './StatusBadge';
 
 export default function DonationCard({ donation, onEdit, onDelete }) {
-  const { foodItemDetails = [], fullAddress, city, contactPersonName, phoneNumber, status, _id } = donation;
+  const { foodItemDetails = [], city, contactPersonName, phoneNumber, status, _id } = donation;
 
   return (
     <div className="donation-card">

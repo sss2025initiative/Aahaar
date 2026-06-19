@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 function easeOutQuad(t) { return 1 - (1 - t) * (1 - t); }
 
@@ -7,6 +7,21 @@ export default function StatCard({ icon, label, value, gradient, delay = 0, suff
   const [visible, setVisible] = useState(false);
   const ref = useRef(null);
   const hasAnimated = useRef(false);
+
+  const animateCounter = useCallback(() => {
+    const target = typeof value === 'number' ? value : parseFloat(value) || 0;
+    const duration = 1800;
+    const startTime = performance.now();
+
+    const tick = (now) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = easeOutQuad(progress);
+      setDisplayValue(Math.round(eased * target));
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [value]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -23,22 +38,7 @@ export default function StatCard({ icon, label, value, gradient, delay = 0, suff
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
-  }, [value, delay]);
-
-  const animateCounter = () => {
-    const target = typeof value === 'number' ? value : parseFloat(value) || 0;
-    const duration = 1800;
-    const startTime = performance.now();
-
-    const tick = (now) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = easeOutQuad(progress);
-      setDisplayValue(Math.round(eased * target));
-      if (progress < 1) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  };
+  }, [delay, animateCounter]);
 
   return (
     <div

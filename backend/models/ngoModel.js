@@ -33,6 +33,14 @@ const ngoSchema = mongoose.Schema({
         type: String,
         required: true,
     },
+    registrationCertificateNumber: {
+        type: String,
+        required: false,
+    },
+    panCardNumber: {
+        type: String,
+        required: false,
+    },
     ngoDocuments: {
         certificationOfRegistration: {
             type: String,
@@ -46,11 +54,23 @@ const ngoSchema = mongoose.Schema({
             type: String,
             required: true,
         },
-
+    },
+    // Links this NGO to the user account that registered it
+    registeredBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: false,
     },
     isApproved: {
         type: Boolean,
         default: false,
+    },
+    approvedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+    },
+    approvedAt: {
+        type: Date,
     },
 },
     { timestamps: true }
@@ -58,4 +78,4 @@ const ngoSchema = mongoose.Schema({
 
 
 const Ngo = mongoose.model("Ngo", ngoSchema)
-export default Ngo;
+export default Ngo;

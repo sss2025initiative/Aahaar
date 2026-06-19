@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
+import { showToast } from '../components/Toast';
 
 const FOOD_PARTICLES = ['🍎', '🥗', '🍞', '🥛', '🍱', '🥕', '🍇', '🌾', '🥦', '🍊', '🫙', '🍚', '🧅', '🥑', '🍋'];
 
@@ -96,14 +98,64 @@ function FaqItem({ q, a }) {
 }
 
 export default function LandingPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [activeRequests, setActiveRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+
+  const [selectedRequestDetails, setSelectedRequestDetails] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [expectedDate, setExpectedDate] = useState('');
+  const [accepting, setAccepting] = useState(false);
+  const [acceptedRequestPass, setAcceptedRequestPass] = useState(null);
+
+  const closeModal = () => {
+    setSelectedRequestDetails(null);
+    setShowDatePicker(false);
+    setExpectedDate('');
+    setAcceptedRequestPass(null);
+  };
+
+  const handleAcceptRequestInline = async (e) => {
+    e.preventDefault();
+    if (!expectedDate) {
+      showToast('Please specify expected delivery date and time', 'error');
+      return;
+    }
+    setAccepting(true);
+    try {
+      const res = await api.put(`/aahar/ngo-food-requests/${selectedRequestDetails._id}/accept`, { expectedDeliveryDate: expectedDate });
+      showToast('You have accepted this food request! Verification token generated.', 'success');
+      setAcceptedRequestPass(res.data?.request);
+      setExpectedDate('');
+      // Reload active requests list
+      api.get('/aahar/ngo-food-requests/active')
+        .then(res => {
+          const list = res.data?.requests || [];
+          const donorId = user?._id || user?.id;
+          setActiveRequests(list.filter(r => r.requestedBy !== donorId && r.requestedBy?._id !== donorId));
+        });
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to accept request', 'error');
+    } finally {
+      setAccepting(false);
+    }
+  };
 
   useEffect(() => {
     api.get('/aahar/stats/getStats')
       .then(res => setStats(res.data?.data || res.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
+
+    api.get('/aahar/ngo-food-requests/active')
+      .then(res => {
+        const list = res.data?.requests || [];
+        const donorId = user?._id || user?.id;
+        setActiveRequests(list.filter(r => r.requestedBy !== donorId && r.requestedBy?._id !== donorId));
+      })
+      .catch(err => console.error('Error fetching active requests:', err))
+      .finally(() => setLoadingRequests(false));
   }, []);
 
   const totalDonations = stats?.totalDonations || 1280;
@@ -157,7 +209,7 @@ export default function LandingPage() {
           </div>
 
           <div className="hero__trust">
-            {['✅ 100% Verified NGOs', '🔒 Secure Platform', '📊 Real-time Tracking', '🆓 Completely Free'].map((t, i) => (
+            {['✅ 100% Verified NGOs', '🔒 Secure Platform', '📊 Real-time Tracking', '💰 Tax Exemption (80G)', '🆓 Completely Free'].map((t, i) => (
               <span key={i}>{t}</span>
             ))}
           </div>
@@ -192,6 +244,245 @@ export default function LandingPage() {
                 </div>
               </React.Fragment>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── ACTIVE COMMUNITY FOOD NEEDS ─── */}
+      <section className="active-needs" style={{ padding: '80px 0', borderBottom: '1px solid var(--border-color)', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)', width: '80%', height: '30%', background: 'radial-gradient(circle, rgba(249,115,22,0.03) 0%, transparent 60%)', filter: 'blur(40px)', pointerEvents: 'none' }} />
+        <div className="container">
+          <div className="section-header" style={{ marginBottom: 40 }}>
+            <div className="section-tag" style={{ background: 'rgba(249,115,22,0.1)', color: 'var(--color-orange)' }}>🏥 Urgent Needs</div>
+            <h2 className="section-title">Active NGO <span className="gradient-text">Food Requests</span></h2>
+            <p className="section-subtitle">Real-time requests from verified NGOs. Help fulfill these needs directly.</p>
+          </div>
+
+          {loadingRequests ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
+              {[1, 2, 3].map(i => (
+                <div key={i} className="skeleton" style={{ height: 200, borderRadius: 'var(--radius-lg)' }} />
+              ))}
+            </div>
+          ) : activeRequests.length === 0 ? (
+            <div style={{
+              textAlign: 'center',
+              padding: '48px 32px',
+              background: 'rgba(255, 255, 255, 0.01)',
+              border: '1px dashed var(--border-color)',
+              borderRadius: 'var(--radius-xl)',
+              color: 'var(--text-secondary)'
+            }}>
+              <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: 12 }}>🌟</span>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: 8, color: 'var(--text-primary)' }}>All Needs Fulfilled!</h3>
+              <p style={{ fontSize: '0.88rem', maxWidth: 440, margin: '0 auto', lineHeight: 1.6 }}>
+                All active food requests in our network are currently claimed or fulfilled. You can still list your surplus food to connect with local NGOs.
+              </p>
+              <Link to="/register" className="btn-primary" style={{ display: 'inline-flex', marginTop: 20, padding: '10px 24px', fontSize: '0.85rem' }}>
+                List Surplus Food 🍱
+              </Link>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 24 }}>
+              {activeRequests.map((req) => {
+                const isCritical = req.urgencyLevel === 'critical';
+                const isHigh = req.urgencyLevel === 'high';
+                const badgeColor = isCritical ? '#f87171' : isHigh ? '#fb923c' : '#fbbf24';
+                const badgeBg = isCritical ? 'rgba(239,68,68,0.1)' : isHigh ? 'rgba(249,115,22,0.1)' : 'rgba(234,179,8,0.1)';
+
+                return (
+                  <div key={req._id} className="glass-card" style={{
+                    padding: 24,
+                    borderRadius: 'var(--radius-xl)',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.3s ease',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'rgba(249,115,22,0.25)';
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                    e.currentTarget.style.transform = 'none';
+                  }}>
+                    <div>
+                      {/* Card Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                        <div>
+                          <h4 style={{ fontWeight: 800, fontSize: '1.1rem', marginBottom: 4 }}>{req.ngoId?.ngoName}</h4>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>📍 {req.ngoId?.ngoCity}, {req.ngoId?.ngoState}</span>
+                        </div>
+                        <span style={{
+                          padding: '3px 10px',
+                          borderRadius: 99,
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          color: badgeColor,
+                          background: badgeBg,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em'
+                        }}>
+                          {req.urgencyLevel}
+                        </span>
+                      </div>
+
+                      {/* Items needed list */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                        {(req.foodItemsNeeded || []).map((item, i) => (
+                          <span key={i} style={{
+                            padding: '4px 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.78rem',
+                            fontWeight: 600,
+                            background: 'rgba(249,115,22,0.06)',
+                            color: 'var(--color-orange)',
+                            border: '1px solid rgba(249,115,22,0.12)'
+                          }}>
+                            {item.foodName} · {item.quantity}{item.quantityType}
+                          </span>
+                        ))}
+                      </div>
+
+                      <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
+                        <strong>Purpose:</strong> {req.purpose}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        if (user) {
+                          setSelectedRequestDetails(req);
+                        } else {
+                          navigate('/login', { state: { from: { pathname: '/dashboard' }, fulfillRequestId: req._id } });
+                        }
+                      }}
+                      className="btn-primary"
+                      style={{ width: '100%', justifyContent: 'center', padding: '10px', fontSize: '0.85rem' }}
+                    >
+                      🤝 Fulfill Need
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ─── CORE PLATFORM CAPABILITIES ─── */}
+      <section className="core-offerings" style={{ padding: '80px 0', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)', width: '80%', height: '30%', background: 'radial-gradient(circle, rgba(249,115,22,0.04) 0%, transparent 60%)', filter: 'blur(40px)', pointerEvents: 'none' }} />
+        <div className="container">
+          <div className="section-header" style={{ marginBottom: 48 }}>
+            <div className="section-tag">🌟 Core Offerings</div>
+            <h2 className="section-title">One Platform,<br /><span className="gradient-text">Double the Value</span></h2>
+            <p className="section-subtitle">Aahaar simplifies surplus food management while optimizing tax benefits for your generosity.</p>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 32, marginTop: 20 }}>
+            {/* Card 1: Donate Food */}
+            <div className="glass-card" style={{ 
+              padding: '40px 32px', 
+              borderRadius: 'var(--radius-xl)', 
+              background: 'rgba(255, 255, 255, 0.02)', 
+              border: '1px solid var(--border-color)', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              justifyContent: 'space-between',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = 'rgba(249,115,22,0.3)';
+              e.currentTarget.style.boxShadow = '0 10px 40px rgba(249,115,22,0.06)';
+              e.currentTarget.style.transform = 'translateY(-4px)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'var(--border-color)';
+              e.currentTarget.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.1)';
+              e.currentTarget.style.transform = 'none';
+            }}>
+              <div>
+                <div style={{ width: 56, height: 56, borderRadius: '16px', background: 'rgba(249,115,22,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', marginBottom: 24, color: 'var(--color-orange)' }}>
+                  🍱
+                </div>
+                <h3 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: 14, color: 'var(--text-primary)' }}>
+                  Donate Surplus Food
+                </h3>
+                <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
+                  Instantly list excess food from restaurants, weddings, or household kitchens. Our location-smart routing matches you with approved local NGOs to prevent food waste.
+                </p>
+                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--color-orange)' }}>✓</span> 📸 Upload items with categorization tags
+                  </li>
+                  <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--color-orange)' }}>✓</span> 🔑 Unique QR & alphanumeric pickup tokens
+                  </li>
+                  <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--color-orange)' }}>✓</span> 📍 Direct coordination with verified NGOs
+                  </li>
+                </ul>
+              </div>
+              <Link to="/register" className="btn-primary" style={{ alignSelf: 'flex-start', padding: '12px 28px', fontSize: '0.875rem', border: 'none', color: '#fff' }}>
+                Start Donating 🚀
+              </Link>
+            </div>
+
+            {/* Card 2: Tax Benefit */}
+            <div className="glass-card" style={{ 
+              padding: '40px 32px', 
+              borderRadius: 'var(--radius-xl)', 
+              background: 'rgba(255, 255, 255, 0.02)', 
+              border: '1px solid var(--border-color)', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              justifyContent: 'space-between',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = 'rgba(6,182,212,0.3)';
+              e.currentTarget.style.boxShadow = '0 10px 40px rgba(6,182,212,0.06)';
+              e.currentTarget.style.transform = 'translateY(-4px)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'var(--border-color)';
+              e.currentTarget.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.1)';
+              e.currentTarget.style.transform = 'none';
+            }}>
+              <div>
+                <div style={{ width: 56, height: 56, borderRadius: '16px', background: 'rgba(6,182,212,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', marginBottom: 24, color: 'var(--color-teal)' }}>
+                  💰
+                </div>
+                <h3 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: 14, color: 'var(--text-primary)' }}>
+                  Claim Tax Benefits (80G)
+                </h3>
+                <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
+                  Turn your social responsibility into savings. Every verified donation automatically calculates tax exemption amounts based on item types (up to 40%) and issues 80G-ready tax certificates.
+                </p>
+                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--color-teal)' }}>✓</span> 📊 Automated category valuation index
+                  </li>
+                  <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--color-teal)' }}>✓</span> 📥 Instant PDF certificate generation
+                  </li>
+                  <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--color-teal)' }}>✓</span> 🏢 Compliance documents for audits & filing
+                  </li>
+                </ul>
+              </div>
+              <Link to="/register" className="btn-secondary" style={{ alignSelf: 'flex-start', padding: '11px 26px', fontSize: '0.875rem' }}>
+                Calculate Exemption →
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -296,6 +587,47 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ─── ENCOURAGEMENT BANNER ─── */}
+      <section style={{ padding: '60px 0', background: 'linear-gradient(135deg, rgba(249,115,22,0.08) 0%, rgba(168,85,247,0.08) 100%)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', position: 'relative' }}>
+        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 40, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 500px' }}>
+            <div className="section-tag" style={{ background: 'rgba(249,115,22,0.12)', color: 'var(--color-orange)', marginBottom: 16 }}>🌱 Double the Goodness</div>
+            <h2 style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1.3, marginBottom: 16, color: 'var(--text-primary)' }}>
+              Feed a Soul, <span className="gradient-text">Empower Your Savings</span>
+            </h2>
+            <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
+              Donating excess food isn't just about reducing waste—it's about bringing hope to families, children, and individuals who struggle for a single daily meal. Aahaar makes your kindness mutually beneficial: support verified NGOs to serve hot meals, while instantly receiving an itemized 80G tax certificate to claim exemption benefits on your tax filings.
+            </p>
+            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginTop: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '1.25rem' }}>🍲</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Zero Food Waste</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '1.25rem' }}>📈</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Instant 80G Certificate</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '1.25rem' }}>🏢</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Tax-deductible Claims</span>
+              </div>
+            </div>
+          </div>
+          <div style={{ flex: '1 1 300px', display: 'flex', justifyContent: 'center' }}>
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-xl)', padding: 32, textAlign: 'center', maxWidth: 360, width: '100%', boxShadow: 'var(--shadow-lg)', backdropFilter: 'blur(10px)' }}>
+              <div style={{ fontSize: '3rem', marginBottom: 12 }}>🛡️</div>
+              <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 8, color: 'var(--text-primary)' }}>100% Tax Compliant</h4>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
+                Every single donation is timestamped, audited, and matched with registered NGO receipts to guarantee full compliance for tax exemption filings.
+              </p>
+              <Link to="/register" className="btn-primary" style={{ display: 'inline-block', width: '100%', padding: '12px 0', border: 'none', color: '#fff', fontSize: '0.88rem', textDecoration: 'none', textAlign: 'center' }}>
+                Start Your Journey 🌟
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ─── FAQ ─── */}
       <section style={{ padding: '80px 0' }}>
         <div className="container" style={{ maxWidth: 760 }}>
@@ -377,6 +709,163 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Detailed Food Request Modal */}
+      {selectedRequestDetails && (
+        <div className="modal-overlay" onClick={closeModal} style={{ zIndex: 1100 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 500, padding: 28, background: 'rgba(17,24,39,0.95)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
+            <h3 className="modal__title" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '1.3rem', fontWeight: 800 }}>
+              🏥 Food Request Details
+            </h3>
+            
+            {acceptedRequestPass ? (
+              /* Success delivery pass view inline */
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginTop: 16 }}>
+                <div style={{ fontSize: '3rem', marginBottom: 10 }}>🎫</div>
+                <h4 style={{ fontWeight: 800, fontSize: '1.15rem', marginBottom: 4, color: 'var(--color-teal)' }}>Fulfillment Confirmed!</h4>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
+                  Show this QR code or share the 6-character token with the NGO representative at the time of delivery to verify.
+                </p>
+
+                {/* QR Code */}
+                <div style={{ 
+                  background: '#ffffff', 
+                  padding: 12, 
+                  borderRadius: 10, 
+                  width: 154, 
+                  height: 154, 
+                  margin: '0 auto 16px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(JSON.stringify({ type: 'request', id: acceptedRequestPass._id, token: acceptedRequestPass.verificationToken }))}`}
+                    alt="Delivery QR Pass"
+                    style={{ width: 130, height: 130 }}
+                  />
+                </div>
+
+                {/* Token */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 2 }}>
+                    Verification Token
+                  </div>
+                  <div style={{ 
+                    fontFamily: 'monospace', 
+                    fontSize: '1.35rem', 
+                    fontWeight: 800, 
+                    color: 'var(--color-orange)', 
+                    background: 'rgba(255,255,255,0.03)', 
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 6,
+                    padding: '6px 12px',
+                    display: 'inline-block',
+                    letterSpacing: 2
+                  }}>
+                    {acceptedRequestPass.verificationToken}
+                  </div>
+                </div>
+
+                <div className="modal__actions" style={{ width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: 14, justifyContent: 'center' }}>
+                  <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '10px 0', border: 'none', color: '#fff' }} onClick={closeModal}>Done</button>
+                </div>
+              </div>
+            ) : showDatePicker ? (
+              /* Inline date picker view */
+              <form onSubmit={handleAcceptRequestInline} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16 }}>
+                <div className="form-group" style={{ textAlign: 'left' }}>
+                  <label className="form-label" style={{ color: 'var(--text-secondary)' }}>Expected Delivery Date & Time *</label>
+                  <input 
+                    type="datetime-local"
+                    className="form-input"
+                    value={expectedDate}
+                    onChange={(e) => setExpectedDate(e.target.value)}
+                    required
+                    min={new Date().toISOString().slice(0, 16)}
+                    style={{ color: 'var(--text-primary)' }}
+                  />
+                </div>
+
+                <div className="modal__actions" style={{ borderTop: '1px solid var(--border-color)', paddingTop: 14, justifyContent: 'flex-end', gap: 10 }}>
+                  <button type="button" className="btn-ghost" onClick={() => setShowDatePicker(false)} disabled={accepting}>Back</button>
+                  <button type="submit" className="btn-primary" style={{ border: 'none', color: '#fff', padding: '10px 20px' }} disabled={accepting}>
+                    {accepting ? 'Confirming...' : 'Confirm Fulfillment'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              /* Request Details view */
+              <>
+                <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 14, fontSize: '0.9rem', textAlign: 'left' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: 14, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 2 }}>NGO Name</div>
+                    <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{selectedRequestDetails.ngoId?.ngoName || '—'}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                      📍 {selectedRequestDetails.ngoId?.ngoCity}, {selectedRequestDetails.ngoId?.ngoState}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>Food Items Needed</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {(selectedRequestDetails.foodItemsNeeded || []).map((item, i) => (
+                        <span key={i} className="navbar__noti-tag" style={{ background: 'rgba(249,115,22,0.08)', color: 'var(--color-orange)', fontSize: '0.82rem', padding: '4px 10px', border: '1px solid rgba(249,115,22,0.12)' }}>
+                          {item.foodName} · {item.quantity}{item.quantityType} ({item.category})
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Urgency Level</div>
+                      <span style={{ 
+                        fontWeight: 700, 
+                        color: selectedRequestDetails.urgencyLevel === 'critical' ? '#f87171' : selectedRequestDetails.urgencyLevel === 'high' ? '#fb923c' : '#fbbf24',
+                        fontSize: '0.85rem'
+                      }}>
+                        {selectedRequestDetails.urgencyLevel?.toUpperCase()}
+                      </span>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Beneficiaries</div>
+                      <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{selectedRequestDetails.numberOfBeneficiaries || 0} people</span>
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 2 }}>Purpose</div>
+                    <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: 1.4, fontSize: '0.85rem' }}>{selectedRequestDetails.purpose}</p>
+                  </div>
+
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4 }}>Contact & Delivery Details</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      <div>👤 {selectedRequestDetails.contactDetails?.contactPersonName}</div>
+                      <div>📞 {selectedRequestDetails.contactDetails?.phoneNumber}</div>
+                      <div>✉️ {selectedRequestDetails.contactDetails?.email}</div>
+                      <div style={{ marginTop: 4 }}>🚚 <strong>Delivery Address:</strong> {selectedRequestDetails.contactDetails?.deliveryAddress}, {selectedRequestDetails.contactDetails?.city}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="modal__actions" style={{ marginTop: 24, borderTop: '1px solid var(--border-color)', paddingTop: 16, justifyContent: 'flex-end', gap: 10 }}>
+                  <button className="btn-ghost" onClick={closeModal}>Close</button>
+                  <button 
+                    className="btn-primary" 
+                    style={{ border: 'none', color: '#fff', padding: '10px 20px' }}
+                    onClick={() => setShowDatePicker(true)}
+                  >
+                    🤝 Fulfill Request
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
