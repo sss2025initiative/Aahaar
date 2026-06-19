@@ -6,6 +6,7 @@
 
 <p align="center">
   <a href="#-features">Features</a> •
+  <a href="#-system-architecture">Architecture</a> •
   <a href="#-functional-workflows">Workflows</a> •
   <a href="#-section-80g-tax-exemption">Tax Exemption</a> •
   <a href="#-tech-stack">Tech Stack</a> •
@@ -29,6 +30,14 @@
 * **Automated Exemption Module**: Built-in 80G tax benefit calculation and certificate generation.
 * **Location-based Routing**: Matches surplus food listings with nearest certified NGOs.
 * **Analytical Dashboards**: Aggregates weekly, monthly, and yearly statistics (meals served, active partners, total weight).
+
+---
+
+## 📊 System Architecture
+
+The platform features a hybrid real-time alert and background push notification delivery pipeline utilizing **Socket.IO** for live, interactive dashboard notifications and **Firebase Cloud Messaging (FCM)** for background notifications when browser tabs are closed:
+
+![Proposed System Architecture](images/proposed_system_architecture.png)
 
 ---
 

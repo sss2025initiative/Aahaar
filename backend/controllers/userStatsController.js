@@ -63,6 +63,8 @@ const getUserDashboardStats = async (req, res) => {
       "foodItemDetails.donorId": donorObjectId
     })
       .sort({ createdAt: -1 })
+      .populate("ngoPreference")
+      .populate("pickedUpByNgo")
       .limit(5);
 
     // Total Donations Summary

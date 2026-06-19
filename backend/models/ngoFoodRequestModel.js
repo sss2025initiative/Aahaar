@@ -57,7 +57,7 @@ const ngoFoodRequestSchema = new mongoose.Schema(
     // Status lifecycle
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected", "fulfilled"],
+      enum: ["pending", "approved", "rejected", "fulfilled", "CREATED", "REQUEST_ACCEPTED", "PICKUP_IN_PROGRESS", "VERIFIED", "COMPLETED"],
       default: "pending",
     },
     adminInReview: { type: Boolean, default: false },

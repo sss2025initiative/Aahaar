@@ -47,6 +47,7 @@ export default function DonorDashboard() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [viewPass, setViewPass] = useState(null);
+  const [viewDetails, setViewDetails] = useState(null);
   const [passType, setPassType] = useState('donation'); // 'donation' | 'request'
 
   // NGO Requests Fulfillments State
@@ -94,6 +95,28 @@ export default function DonorDashboard() {
     };
     load();
     return () => { active = false; };
+  }, [fetchData]);
+
+  // Listen for socket notification events to trigger real-time dashboard data refresh
+  useEffect(() => {
+    const handleNotification = (e) => {
+      const notification = e.detail;
+      // Refresh donor dashboard data when a request/donation status changes
+      if (
+        notification &&
+        (notification.type === 'FOOD_REQUEST_ACCEPTED' ||
+         notification.type === 'FOOD_REQUEST_FULFILLED' ||
+         notification.type === 'DONATION_APPROVED' ||
+         notification.type === 'DONATION_REJECTED' ||
+         notification.type === 'DONATION_COMPLETED')
+      ) {
+        fetchData();
+      }
+    };
+    window.addEventListener('notification-received', handleNotification);
+    return () => {
+      window.removeEventListener('notification-received', handleNotification);
+    };
   }, [fetchData]);
 
   // Handle auto-opening the Fulfill Request modal when redirected from Navbar notifications dropdown
@@ -438,24 +461,30 @@ export default function DonorDashboard() {
                     </div>
                   )}
 
-                  {(donation.status === 'pending' || donation.status === 'approved') && (
-                    <div className="donation-card__actions" style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-                      {donation.status === 'pending' && (
-                        <button className="btn-danger" style={{ fontSize: '0.8rem', padding: '7px 14px', marginRight: 'auto' }} onClick={() => setDeleteConfirm(donation._id)}>
-                          🗑 Delete
-                        </button>
-                      )}
-                      {donation.verificationToken && (
-                        <button 
-                          className="btn-teal" 
-                          style={{ fontSize: '0.8rem', padding: '7px 14px', marginLeft: donation.status === 'pending' ? 0 : 'auto', background: 'var(--grad-teal)', border: 'none', color: '#fff' }}
-                          onClick={() => setViewPass(donation)}
-                        >
-                          🔑 Pickup Pass
-                        </button>
-                      )}
-                    </div>
-                  )}
+                  <div className="donation-card__actions" style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+                    {donation.status === 'pending' && (
+                      <button className="btn-danger" style={{ fontSize: '0.8rem', padding: '7px 14px', marginRight: 'auto' }} onClick={() => setDeleteConfirm(donation._id)}>
+                        🗑 Delete
+                      </button>
+                    )}
+                    <button 
+                      type="button"
+                      className="btn-secondary" 
+                      style={{ fontSize: '0.8rem', padding: '7px 14px', marginLeft: donation.status === 'pending' ? 0 : 'auto', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', cursor: 'pointer', borderRadius: 'var(--radius-md)' }}
+                      onClick={() => setViewDetails(donation)}
+                    >
+                      ℹ️ Details
+                    </button>
+                    {(donation.status === 'pending' || donation.status === 'approved') && donation.verificationToken && (
+                      <button 
+                        className="btn-teal" 
+                        style={{ fontSize: '0.8rem', padding: '7px 14px', background: 'var(--grad-teal)', border: 'none', color: '#fff' }}
+                        onClick={() => setViewPass(donation)}
+                      >
+                        🔑 Pickup Pass
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))
             )}
@@ -506,6 +535,14 @@ export default function DonorDashboard() {
                     <span className="donation-card__meta-item">📍 Delivery to: {ful.contactDetails?.deliveryAddress}, {ful.contactDetails?.city}</span>
                     <span className="donation-card__meta-item">📅 Expected Delivery: {new Date(ful.expectedDeliveryDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
+
+                  {ful.contactDetails && (
+                    <div style={{ marginTop: 10, fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.01)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div>🏢 NGO Representative: <strong>{ful.contactDetails.contactPersonName}</strong></div>
+                      <div>📞 Phone: <strong>{ful.contactDetails.phoneNumber}</strong></div>
+                      <div>✉️ Email: <strong>{ful.contactDetails.email}</strong></div>
+                    </div>
+                  )}
 
                   {ful.status !== 'fulfilled' && (
                     <div className="donation-card__actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
@@ -644,7 +681,15 @@ export default function DonorDashboard() {
               justifyContent: 'center'
             }}>
               <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(JSON.stringify({ type: passType, id: viewPass._id, token: viewPass.verificationToken }))}`}
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(JSON.stringify({
+                  type: passType,
+                  id: viewPass._id,
+                  donationId: viewPass._id,
+                  donorId,
+                  ngoId: viewPass.ngoPreference,
+                  token: viewPass.verificationToken,
+                  verificationCode: viewPass.verificationToken
+                }))}`}
                 alt="Donation QR Pass"
                 style={{ width: 150, height: 150 }}
               />
@@ -709,6 +754,122 @@ export default function DonorDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Donation Details Modal */}
+      {viewDetails && (
+        <div className="modal-overlay" onClick={() => setViewDetails(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 500, width: '95%', textAlign: 'left', maxHeight: '90vh', overflowY: 'auto', padding: 24 }}>
+            <h3 className="modal__title" style={{ fontSize: '1.25rem', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              🍱 Donation Details
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {/* Id & Status */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Donation ID</div>
+                  <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '0.95rem' }}>#{viewDetails._id}</div>
+                </div>
+                <StatusBadge status={(viewDetails.status === 'pending' && viewDetails.adminInReview) ? 'inreview' : viewDetails.status} />
+              </div>
+
+              {/* Recipient Details */}
+              <div style={{ padding: 14, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--color-teal)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  🤝 Recipient Information
+                </div>
+                <div style={{ fontSize: '0.85rem', lineHeight: 1.5, color: 'var(--text-secondary)' }}>
+                  {viewDetails.status === 'done' ? (
+                    viewDetails.pickedUpByNgo ? (
+                      <div>
+                        <div>NGO: <strong style={{ color: 'var(--text-primary)' }}>{viewDetails.pickedUpByNgo.ngoName}</strong></div>
+                        <div>Phone: <strong style={{ color: 'var(--text-primary)' }}>{viewDetails.pickedUpByNgo.ngoPhone}</strong></div>
+                        <div>Email: <strong style={{ color: 'var(--text-primary)' }}>{viewDetails.pickedUpByNgo.ngoEmail}</strong></div>
+                        <div>Location: <strong style={{ color: 'var(--text-primary)' }}>{viewDetails.pickedUpByNgo.ngoAddress}, {viewDetails.pickedUpByNgo.ngoCity}</strong></div>
+                      </div>
+                    ) : viewDetails.ngoPreference && viewDetails.ngoPreference !== 'random' ? (
+                      <div>
+                        <div>NGO: <strong style={{ color: 'var(--text-primary)' }}>{viewDetails.ngoPreference.ngoName}</strong></div>
+                        <div>Phone: <strong style={{ color: 'var(--text-primary)' }}>{viewDetails.ngoPreference.ngoPhone}</strong></div>
+                        <div>Email: <strong style={{ color: 'var(--text-primary)' }}>{viewDetails.ngoPreference.ngoEmail}</strong></div>
+                        <div>Location: <strong style={{ color: 'var(--text-primary)' }}>{viewDetails.ngoPreference.ngoAddress}, {viewDetails.ngoPreference.ngoCity}</strong></div>
+                      </div>
+                    ) : (
+                      <div>
+                        <strong style={{ color: 'var(--text-primary)' }}>Directly Donated to Platform (Aahaar)</strong>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: 4 }}>Food was collected and distributed directly to the needy by Aahaar volunteers.</div>
+                      </div>
+                    )
+                  ) : (
+                    viewDetails.ngoPreference && viewDetails.ngoPreference !== 'random' ? (
+                      <div>
+                        <div>Assigned NGO: <strong style={{ color: 'var(--text-primary)' }}>{viewDetails.ngoPreference.ngoName}</strong></div>
+                        <div>Phone: <strong style={{ color: 'var(--text-primary)' }}>{viewDetails.ngoPreference.ngoPhone}</strong></div>
+                        <div>Email: <strong style={{ color: 'var(--text-primary)' }}>{viewDetails.ngoPreference.ngoEmail}</strong></div>
+                        <div>Location: <strong style={{ color: 'var(--text-primary)' }}>{viewDetails.ngoPreference.ngoAddress}, {viewDetails.ngoPreference.ngoCity}</strong></div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div>Assigned to: <strong style={{ color: 'var(--text-primary)' }}>Directly Donate to Platform (Aahaar)</strong></div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: 4 }}>Pending administrative matching or direct volunteer pickup.</div>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* What was Donated */}
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: 10, color: 'var(--color-orange)' }}>
+                  📦 Food Items Details
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(viewDetails.foodItemDetails || []).map((item, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: 8, fontSize: '0.82rem' }}>
+                      <div>
+                        <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{item.foodName}</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginLeft: 8 }}>({item.category})</span>
+                      </div>
+                      <div style={{ fontWeight: 700, color: 'var(--color-orange)' }}>
+                        {item.quantity}{item.quantityType}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Delivery Address / Date & Time */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, fontSize: '0.82rem', borderTop: '1px solid var(--border-color)', paddingTop: 14 }}>
+                <div>
+                  <div style={{ color: 'var(--text-muted)' }}>Created At</div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{viewDetails.createdAt ? new Date(viewDetails.createdAt).toLocaleString('en-IN') : '—'}</div>
+                </div>
+                {viewDetails.completedAt && (
+                  <div>
+                    <div style={{ color: 'var(--text-muted)' }}>Completed At</div>
+                    <div style={{ fontWeight: 700, color: 'var(--color-green)' }}>{new Date(viewDetails.completedAt).toLocaleString('en-IN')}</div>
+                  </div>
+                )}
+                <div style={{ gridColumn: '1 / -1', marginTop: 6 }}>
+                  <div style={{ color: 'var(--text-muted)' }}>Pickup Location</div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{viewDetails.contactDetails?.fullAddress}, {viewDetails.contactDetails?.city}</div>
+                </div>
+              </div>
+
+              {/* Rejection Details */}
+              {viewDetails.status === 'rejected' && viewDetails.rejectedReason && (
+                <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 8, fontSize: '0.82rem', color: '#f87171' }}>
+                  ⚠️ <strong>Rejection Reason:</strong> {viewDetails.rejectedReason}
+                </div>
+              )}
+            </div>
+
+            <div className="modal__actions" style={{ marginTop: 24, borderTop: '1px solid var(--border-color)', paddingTop: 14, justifyContent: 'flex-end' }}>
+              <button className="btn-ghost" onClick={() => setViewDetails(null)}>Close</button>
+            </div>
           </div>
         </div>
       )}

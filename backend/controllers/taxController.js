@@ -1,6 +1,7 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import FoodInfo from "../models/foodInfoModel.js";
 import Tax from "../models/taxModel.js";
+import { notify } from "../services/notification.service.js";
 
 const calculateTaxForExemption = asyncHandler(async (req, res) => {
     const foodRates = {
@@ -109,6 +110,19 @@ const calculateTaxForExemption = asyncHandler(async (req, res) => {
         certificateIssued: false,
         itemizedExemptions: itemizedExemptions
     });
+
+    if (donorId) {
+        await notify({
+            receiverId: donorId,
+            receiverRole: 'donor',
+            title: 'Tax Exemption Calculated',
+            message: `Your 80G tax exemption certificate of ₹${totalExemptionAmount} has been generated.`,
+            type: 'TAX_CERTIFICATE_GENERATED',
+            entityType: 'Tax',
+            entityId: taxExemption._id,
+            priority: 'medium'
+        });
+    }
     
     res.status(201).json({
         success: true,

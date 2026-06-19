@@ -3,6 +3,7 @@ import User from "../models/userModel.js";
 import FoodInfo from "../models/foodInfoModel.js";
 import Ngo from "../models/ngoModel.js";
 import NgoFoodRequest from "../models/ngoFoodRequestModel.js";
+import { notify } from "../services/notification.service.js";
 
 // Get all NGOs (admin can manage all NGOs regardless of city)
 const getNgoBasedOnCity = asyncHandler(async(req, res) => {
@@ -21,14 +22,37 @@ const approveNgo = asyncHandler(async (req, res) => {
         ngo.approvedAt = new Date();
         ngo.approvedBy = req.user._id;
         await ngo.save();
+
+        if (ngo.registeredBy) {
+            await notify({
+                receiverId: ngo.registeredBy,
+                receiverRole: 'ngo',
+                title: 'NGO Approved',
+                message: `Your NGO "${ngo.ngoName}" has been approved.`,
+                type: 'NGO_VERIFIED',
+                entityType: 'Ngo',
+                entityId: ngo._id,
+                priority: 'high'
+            });
+        }
+
         res.status(200).json({ message: "Ngo approved successfully", ngo });
     }
 })
 
+const getCityRegex = (city) => {
+  const trimmed = (city || '').trim();
+  if (/^ghazi?a?bad$/i.test(trimmed)) {
+    return new RegExp("^ghazi?a?bad$", "i");
+  }
+  return new RegExp(`^${trimmed}$`, 'i');
+};
+
 //getting users based on their cities
 const getUsersBasedOnCity = asyncHandler(async (req, res) => {
     const userCity = req.user.city;
-    const users = await User.find({ city: userCity });
+    const cityRegex = getCityRegex(userCity);
+    const users = await User.find({ city: { $regex: cityRegex } });
     res.status(200).json(users);
 })
 
@@ -41,6 +65,18 @@ const verifyUser = asyncHandler(async (req, res) => {
     } else {
         user.isVerified = true;
         await user.save();
+
+        await notify({
+            receiverId: user._id,
+            receiverRole: 'donor',
+            title: 'Account Verified',
+            message: 'Your donor account verification is approved.',
+            type: 'USER_VERIFIED',
+            entityType: 'User',
+            entityId: user._id,
+            priority: 'high'
+        });
+
         res.status(200).json({ message: "User verified successfully" });
     }
 })
@@ -90,7 +126,10 @@ const makeUserAdmin = asyncHandler(async (req, res) => {
 // @desc    Get food info by city
 const getFoodInfoByCity=asyncHandler(async(req ,res)=>{
     const city = req.user.city;
-    const foodInfo=await FoodInfo.find({ "contactDetails.city": city }).sort({ createdAt: -1 });
+    const cityRegex = getCityRegex(city);
+    const foodInfo=await FoodInfo.find({
+        "contactDetails.city": { $regex: cityRegex }
+    }).sort({ createdAt: -1 });
     return res.status(200).json({
         foodInfo,
         message: "Food info fetched successfully"
@@ -184,6 +223,37 @@ const approveFoodDonation = asyncHandler(async (req, res) => {
   
   await donation.save();
   
+  const donorId = donation.foodItemDetails?.[0]?.donorId;
+  if (donorId) {
+    await notify({
+      receiverId: donorId,
+      receiverRole: 'donor',
+      title: 'Donation Approved',
+      message: 'Admin has approved your food donation.',
+      type: 'DONATION_APPROVED',
+      entityType: 'FoodInfo',
+      entityId: donation._id,
+      priority: 'high'
+    });
+  }
+
+  // Notify preferred NGO if specified
+  if (donation.ngoPreference && donation.ngoPreference.toString() !== 'random') {
+    const ngo = await Ngo.findById(donation.ngoPreference);
+    if (ngo && ngo.registeredBy) {
+      await notify({
+        receiverId: ngo.registeredBy,
+        receiverRole: 'ngo',
+        title: 'New Donation Assigned',
+        message: `A donor has assigned a direct food donation to your NGO.`,
+        type: 'NEW_DONATION_ASSIGNED',
+        entityType: 'FoodInfo',
+        entityId: donation._id,
+        priority: 'high'
+      });
+    }
+  }
+  
   res.status(200).json({
     message: "Food donation approved successfully",
     donation
@@ -271,6 +341,20 @@ const rejectFoodDonation = asyncHandler(async (req, res) => {
   
   await donation.save();
   
+  const donorId = donation.foodItemDetails?.[0]?.donorId;
+  if (donorId) {
+    await notify({
+      receiverId: donorId,
+      receiverRole: 'donor',
+      title: 'Donation Rejected',
+      message: `Your food donation request was rejected. Reason: ${donation.rejectedReason}`,
+      type: 'DONATION_REJECTED',
+      entityType: 'FoodInfo',
+      entityId: donation._id,
+      priority: 'high'
+    });
+  }
+  
   res.status(200).json({
     message: "Food donation rejected successfully",
     donation
@@ -310,6 +394,21 @@ const completeFoodDonation = asyncHandler(async (req, res) => {
   donation.completedAt = new Date();
 
   await donation.save();
+
+  const donorId = donation.foodItemDetails?.[0]?.donorId;
+  if (donorId) {
+    await notify({
+      receiverId: donorId,
+      receiverRole: 'donor',
+      title: 'Donation Completed',
+      message: 'Thank you! Your donation was successfully picked up and delivered.',
+      type: 'DONATION_COMPLETED',
+      entityType: 'FoodInfo',
+      entityId: donation._id,
+      priority: 'medium'
+    });
+  }
+
   res.status(200).json({
     message: "Food donation marked as done successfully",
     donation
@@ -343,6 +442,20 @@ const approveNgoFoodRequest = asyncHandler(async (req, res) => {
   request.approvedAt = new Date();
   request.adminInReview = false;
   await request.save();
+
+  if (request.requestedBy) {
+    await notify({
+      receiverId: request.requestedBy,
+      receiverRole: 'ngo',
+      title: 'NGO Food Request Approved',
+      message: 'Your NGO food request has been approved by admin.',
+      type: 'FOOD_REQUEST_APPROVED',
+      entityType: 'NgoFoodRequest',
+      entityId: request._id,
+      priority: 'high'
+    });
+  }
+
   res.status(200).json({ message: 'NGO food request approved', request });
 });
 
@@ -361,6 +474,20 @@ const rejectNgoFoodRequest = asyncHandler(async (req, res) => {
   request.rejectedReason = rejectionReason || 'No reason provided';
   request.adminInReview = false;
   await request.save();
+
+  if (request.requestedBy) {
+    await notify({
+      receiverId: request.requestedBy,
+      receiverRole: 'ngo',
+      title: 'NGO Food Request Rejected',
+      message: `Your NGO food request was rejected. Reason: ${request.rejectedReason}`,
+      type: 'FOOD_REQUEST_REJECTED',
+      entityType: 'NgoFoodRequest',
+      entityId: request._id,
+      priority: 'high'
+    });
+  }
+
   res.status(200).json({ message: 'NGO food request rejected', request });
 });
 
@@ -377,6 +504,32 @@ const fulfillNgoFoodRequest = asyncHandler(async (req, res) => {
   request.fulfilledAt = new Date();
   if (adminNotes) request.adminNotes = adminNotes;
   await request.save();
+
+  if (request.requestedBy) {
+    await notify({
+      receiverId: request.requestedBy,
+      receiverRole: 'ngo',
+      title: 'NGO Food Request Fulfilled',
+      message: 'Your NGO food request has been marked as fulfilled by Admin.',
+      type: 'FOOD_REQUEST_FULFILLED',
+      entityType: 'NgoFoodRequest',
+      entityId: request._id,
+      priority: 'medium'
+    });
+  }
+  if (request.acceptedBy) {
+    await notify({
+      receiverId: request.acceptedBy,
+      receiverRole: 'donor',
+      title: 'Fulfillment Completed',
+      message: 'The food request you accepted has been marked as fulfilled by Admin.',
+      type: 'FOOD_REQUEST_FULFILLED',
+      entityType: 'NgoFoodRequest',
+      entityId: request._id,
+      priority: 'medium'
+    });
+  }
+
   res.status(200).json({ message: 'NGO food request marked as fulfilled', request });
 });
 

@@ -1,5 +1,5 @@
 import { useState, Fragment, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import { showToast } from '../components/Toast';
@@ -21,13 +21,17 @@ const STEPS = [
 export default function CreateDonation() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const donorId = user?._id || user?.id;
+
+  const queryParams = new URLSearchParams(location.search);
+  const preSelectedNgoId = location.state?.ngoId || queryParams.get('ngoId');
 
   const [step, setStep] = useState(0);
   const [items, setItems] = useState([makeItem(donorId)]);
   const [contact, setContact] = useState({ fullAddress: '', city: user?.city || '', contactPersonName: user?.firstName ? `${user.firstName} ${user.surname || ''}`.trim() : '', phoneNumber: '', email: user?.email || '' });
   
-  const [ngoPreference, setNgoPreference] = useState('random');
+  const [ngoPreference, setNgoPreference] = useState(preSelectedNgoId || 'random');
   const [cityNgos, setCityNgos] = useState([]);
   const [loadingNgos, setLoadingNgos] = useState(false);
   
@@ -37,6 +41,26 @@ export default function CreateDonation() {
 
   useEffect(() => {
     let active = true;
+    if (preSelectedNgoId) {
+      Promise.resolve().then(() => {
+        if (active) setLoadingNgos(true);
+      });
+      api.get(`/aahar/ngo/${preSelectedNgoId}`)
+        .then(res => {
+          if (active && res.data?.ngo) {
+            setCityNgos([res.data.ngo]);
+          }
+        })
+        .catch(err => {
+          console.error("Failed to fetch pre-selected NGO", err);
+          if (active) setCityNgos([]);
+        })
+        .finally(() => {
+          if (active) setLoadingNgos(false);
+        });
+      return () => { active = false; };
+    }
+
     if (!contact.city || !contact.city.trim()) {
       Promise.resolve().then(() => {
         if (active) setCityNgos([]);
@@ -68,7 +92,7 @@ export default function CreateDonation() {
     return () => {
       active = false;
     };
-  }, [contact.city]);
+  }, [contact.city, preSelectedNgoId]);
 
   const updateItem = (idx, field, value) => {
     setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it));
@@ -138,7 +162,15 @@ export default function CreateDonation() {
   const minDate = tomorrow.toISOString().split('T')[0];
 
   if (successDonation) {
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(JSON.stringify({ type: 'donation', id: successDonation._id, token: successDonation.verificationToken }))}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(JSON.stringify({
+      type: 'donation',
+      id: successDonation._id,
+      donationId: successDonation._id,
+      donorId,
+      ngoId: successDonation.ngoPreference,
+      token: successDonation.verificationToken,
+      verificationCode: successDonation.verificationToken
+    }))}`;
     const targetNgoName = successDonation.ngoPreference === 'random' 
       ? 'Directly Donate (Auto-assign)' 
       : cityNgos.find(n => n._id === successDonation.ngoPreference)?.ngoName || 'Selected NGO';

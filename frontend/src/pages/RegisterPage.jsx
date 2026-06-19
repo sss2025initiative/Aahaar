@@ -20,7 +20,7 @@ export default function RegisterPage() {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
     firstName: '', surname: '', email: '', password: '', confirmPassword: '',
-    age: '', city: '', state: '', country: 'India',
+    age: '', phone: '', city: '', state: '', country: 'India',
   });
   const [errors, setErrors] = useState({});
   const [showPass, setShowPass] = useState(false);
@@ -47,6 +47,8 @@ export default function RegisterPage() {
       if (!form.surname.trim()) errs.surname = 'Required';
       if (!form.age) errs.age = 'Required';
       else if (isNaN(form.age) || +form.age < 16 || +form.age > 100) errs.age = 'Enter a valid age (16–100)';
+      if (!form.phone.trim()) errs.phone = 'Required';
+      else if (!/^\+?[0-9]{10,15}$/.test(form.phone.replace(/[\s-()]/g, ''))) errs.phone = 'Enter a valid phone number (e.g. +919876543210)';
     }
     if (s === 2) {
       if (!form.city.trim()) errs.city = 'Required';
@@ -74,6 +76,7 @@ export default function RegisterPage() {
       email: form.email.trim().toLowerCase(),
       password: form.password,
       age: Number(form.age),
+      phone: form.phone,
       city: form.city,
       state: form.state,
       country: form.country,
@@ -99,6 +102,7 @@ export default function RegisterPage() {
       email: form.email.trim().toLowerCase(),
       password: form.password,
       age: Number(form.age),
+      phone: form.phone,
       city: form.city,
       state: form.state,
       country: form.country,
@@ -254,6 +258,12 @@ export default function RegisterPage() {
                 <input name="age" type="number" className={`form-input ${errors.age ? 'error' : ''}`}
                   placeholder="25" value={form.age} onChange={handleChange} min={16} max={100} />
                 {errors.age && <span className="form-error">⚠ {errors.age}</span>}
+              </div>
+              <div className="form-group">
+                <label className="form-label">Phone Number</label>
+                <input name="phone" type="tel" className={`form-input ${errors.phone ? 'error' : ''}`}
+                  placeholder="+919876543210" value={form.phone} onChange={handleChange} />
+                {errors.phone && <span className="form-error">⚠ {errors.phone}</span>}
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button" onClick={prevStep} className="btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: '13px' }}>← Back</button>

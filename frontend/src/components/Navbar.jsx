@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { showToast } from './Toast';
 import api from '../api/axios';
+import NotificationBell from './NotificationBell';
 
 export default function Navbar() {
   const { user, isAdmin, logout } = useAuth();
@@ -65,13 +66,11 @@ export default function Navbar() {
   }, []);
 
   const [activeRequests, setActiveRequests] = useState([]);
-  const [notiOpen, setNotiOpen] = useState(false);
   const [selectedRequestDetails, setSelectedRequestDetails] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [expectedDate, setExpectedDate] = useState('');
   const [accepting, setAccepting] = useState(false);
   const [acceptedRequestPass, setAcceptedRequestPass] = useState(null);
-  const notiRef = useRef(null);
 
   const closeModal = () => {
     setSelectedRequestDetails(null);
@@ -100,71 +99,57 @@ export default function Navbar() {
     }
   };
 
-  const fetchActiveRequests = async () => {
+  const fetchActiveRequests = useCallback(async () => {
     try {
       if (isAdmin) {
-        const res = await api.get('/aahar/admin/ngo-food-requests');
-        const list = res.data?.requests || [];
-        setActiveRequests(list.filter(r => r.status === 'pending'));
+        const [resReqs, resDonations] = await Promise.all([
+          api.get('/aahar/admin/ngo-food-requests'),
+          api.get('/aahar/admin/getFoodInfoByCity')
+        ]);
+        const reqsList = (resReqs.data?.requests || []).filter(r => r.status === 'pending');
+        const donationsList = (resDonations.data?.foodInfo || []).filter(d => d.status === 'pending');
+        setActiveRequests([
+          ...reqsList.map(r => ({ ...r, type: 'ngo-request' })),
+          ...donationsList.map(d => ({ ...d, type: 'donation' }))
+        ]);
+      } else if (hasNgo) {
+        const res = await api.get('/aahar/foodInfo/my-assigned-donations');
+        const list = res.data?.donations || [];
+        setActiveRequests(list.filter(d => d.status === 'approved').map(d => ({ ...d, type: 'donation' })));
       } else {
         const res = await api.get('/aahar/ngo-food-requests/active');
         const list = res.data?.requests || [];
         const donorId = user?._id || user?.id;
-        setActiveRequests(list.filter(r => r.requestedBy !== donorId && r.requestedBy?._id !== donorId));
+        setActiveRequests(list.filter(r => r.requestedBy !== donorId && r.requestedBy?._id !== donorId).map(r => ({ ...r, type: 'ngo-request' })));
       }
     } catch (err) {
       console.log('Error fetching active food requests for notifications', err);
     }
-  };
+  }, [isAdmin, hasNgo, user]);
 
   useEffect(() => {
-    let active = true;
-    const load = async () => {
-      await Promise.resolve();
-      if (!active) return;
-      if (user) {
-        try {
-          if (isAdmin) {
-            const res = await api.get('/aahar/admin/ngo-food-requests');
-            if (active) {
-              const list = res.data?.requests || [];
-              setActiveRequests(list.filter(r => r.status === 'pending'));
-            }
-          } else {
-            const res = await api.get('/aahar/ngo-food-requests/active');
-            if (active) {
-              const list = res.data?.requests || [];
-              const donorId = user?._id || user?.id;
-              setActiveRequests(list.filter(r => r.requestedBy !== donorId && r.requestedBy?._id !== donorId));
-            }
-          }
-        } catch (err) {
-          console.log('Error fetching active food requests for notifications', err);
-        }
-      } else {
-        if (active) {
-          setActiveRequests([]);
-        }
-      }
-    };
-    load();
-    return () => { active = false; };
-  }, [user, isAdmin]);
-
-  const toggleNoti = () => {
-    if (!notiOpen) {
+    if (user) {
       fetchActiveRequests();
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveRequests([]);
     }
-    setNotiOpen(!notiOpen);
-  };
+  }, [user, fetchActiveRequests]);
+
+  useEffect(() => {
+    const handleNotification = () => {
+      fetchActiveRequests();
+    };
+    window.addEventListener('notification-received', handleNotification);
+    return () => {
+      window.removeEventListener('notification-received', handleNotification);
+    };
+  }, [fetchActiveRequests]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setDropdownOpen(false);
-      }
-      if (notiRef.current && !notiRef.current.contains(e.target)) {
-        setNotiOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -175,7 +160,6 @@ export default function Navbar() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMenuOpen(false);
     setDropdownOpen(false);
-    setNotiOpen(false);
   }, [location.pathname]);
 
   const handleLogout = async () => {
@@ -264,77 +248,11 @@ export default function Navbar() {
             </button>
 
             {user && (
-              <div className="navbar__noti" ref={notiRef} style={{ marginRight: 12 }}>
-                <button
-                  className="navbar__noti-btn"
-                  onClick={toggleNoti}
-                  title="Active food needs"
-                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-orange)'}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
-                >
-                  🔔
-                  {activeRequests.length > 0 && (
-                    <span className="navbar__noti-badge">{activeRequests.length}</span>
-                  )}
-                </button>
-                {notiOpen && (
-                  <div className="navbar__noti-dropdown">
-                    <div className="navbar__noti-header">
-                      <span className="navbar__noti-title">
-                        {isAdmin ? '📋 Pending Approvals' : '📢 Active Food Needs'}
-                      </span>
-                      <span className="navbar__noti-count">{activeRequests.length}</span>
-                    </div>
-                    <div className="navbar__noti-list">
-                      {activeRequests.length === 0 ? (
-                        <div className="navbar__noti-empty">
-                          No {isAdmin ? 'pending approvals' : 'active requests'} at the moment.
-                        </div>
-                      ) : (
-                        activeRequests.map((req) => (
-                          <div 
-                            key={req._id} 
-                            className="navbar__noti-item"
-                            onClick={() => {
-                              setSelectedRequestDetails(req);
-                              setNotiOpen(false);
-                            }}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            <div className="navbar__noti-ngo">{req.ngoId?.ngoName}</div>
-                            <div className="navbar__noti-location">📍 {req.ngoId?.ngoCity}, {req.ngoId?.ngoState}</div>
-                            <div className="navbar__noti-tags">
-                              {(req.foodItemsNeeded || []).slice(0, 3).map((item, i) => (
-                                <span key={i} className="navbar__noti-tag">
-                                  {item.foodName} ({item.quantity}{item.quantityType})
-                                </span>
-                              ))}
-                              {(req.foodItemsNeeded || []).length > 3 && (
-                                <span className="navbar__noti-tag" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' }}>
-                                  +{req.foodItemsNeeded.length - 3} more
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, fontSize: '0.72rem' }}>
-                              <span style={{ 
-                                padding: '2px 8px', 
-                                borderRadius: 4, 
-                                background: req.urgencyLevel === 'critical' ? 'rgba(239,68,68,0.1)' : req.urgencyLevel === 'high' ? 'rgba(249,115,22,0.1)' : 'rgba(234,179,8,0.1)',
-                                color: req.urgencyLevel === 'critical' ? '#f87171' : req.urgencyLevel === 'high' ? '#fb923c' : '#fbbf24',
-                                fontWeight: 700,
-                                textTransform: 'uppercase'
-                              }}>
-                                {req.urgencyLevel}
-                              </span>
-                              <span style={{ color: 'var(--color-orange)', fontWeight: 600 }}>Details →</span>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <NotificationBell
+                activeRequests={activeRequests}
+                onSelectRequest={setSelectedRequestDetails}
+                isAdmin={isAdmin}
+              />
             )}
 
             {user ? (

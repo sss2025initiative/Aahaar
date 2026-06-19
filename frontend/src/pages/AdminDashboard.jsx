@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import { showToast } from '../components/Toast';
@@ -608,7 +608,8 @@ function ImpactSummary() {
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState('overview');
+  const location = useLocation();
+  const [tab, setTab] = useState(() => location.state?.tab || 'overview');
   const [users, setUsers] = useState([]);
   const [donations, setDonations] = useState([]);
   const [ngos, setNgos] = useState([]);
@@ -618,11 +619,24 @@ export default function AdminDashboard() {
   const [rejectModal, setRejectModal] = useState(null);
   const [ngoRejectModal, setNgoRejectModal] = useState(null);
   const [reviewDonation, setReviewDonation] = useState(null);
-  const [donationFilter, setDonationFilter] = useState('pending');
-  const [ngoRequestFilter, setNgoRequestFilter] = useState('pending');
+  const [donationFilter, setDonationFilter] = useState(() => location.state?.filter || 'pending');
+  const [ngoRequestFilter, setNgoRequestFilter] = useState(() => location.state?.ngoRequestFilter || 'pending');
   const [ngoFilter, setNgoFilter] = useState('all');
   const [userSearch, setUserSearch] = useState('');
   const [trendPeriod, setTrendPeriod] = useState('weekly');
+
+  useEffect(() => {
+    if (location.state?.tab) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTab(location.state.tab);
+    }
+    if (location.state?.filter) {
+      setDonationFilter(location.state.filter);
+    }
+    if (location.state?.ngoRequestFilter) {
+      setNgoRequestFilter(location.state.ngoRequestFilter);
+    }
+  }, [location.state]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -689,6 +703,38 @@ export default function AdminDashboard() {
       active = false;
     };
   }, [fetchStats, fetchUsers, fetchDonations, fetchNgos, fetchNgoRequests]);
+
+  // Listen for socket notification events to trigger real-time admin dashboard data refresh
+  useEffect(() => {
+    const handleNotification = (e) => {
+      const notification = e.detail;
+      if (notification) {
+        if (
+          notification.type === 'NEW_DONATION_SUBMITTED' ||
+          notification.type === 'DONATION_CREATED' ||
+          notification.type === 'DONATION_COMPLETED' ||
+          notification.type === 'DONATION_APPROVED' ||
+          notification.type === 'DONATION_REJECTED'
+        ) {
+          fetchDonations();
+          fetchStats();
+        } else if (
+          notification.type === 'NEW_FOOD_REQUEST' ||
+          notification.type === 'FOOD_REQUEST_ACCEPTED' ||
+          notification.type === 'FOOD_REQUEST_FULFILLED' ||
+          notification.type === 'FOOD_REQUEST_APPROVED' ||
+          notification.type === 'FOOD_REQUEST_REJECTED'
+        ) {
+          fetchNgoRequests();
+          fetchStats();
+        }
+      }
+    };
+    window.addEventListener('notification-received', handleNotification);
+    return () => {
+      window.removeEventListener('notification-received', handleNotification);
+    };
+  }, [fetchDonations, fetchNgoRequests, fetchStats]);
 
   // Auto-refresh relevant data when switching tabs
   const handleTabChange = useCallback((newTab) => {

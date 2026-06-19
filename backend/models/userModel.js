@@ -47,6 +47,18 @@ const userSchema = mongoose.Schema(
       type: String,
       default: null,
     },
+    phone: {
+      type: String,
+      default: null,
+    },
+    fcmToken: {
+      type: String,
+      default: null,
+    },
+    profileImage: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

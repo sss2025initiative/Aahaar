@@ -1,7 +1,10 @@
 import FoodInfo from "../models/foodInfoModel.js";
 import Ngo from "../models/ngoModel.js";
+import NgoFoodRequest from "../models/ngoFoodRequestModel.js";
 import asyncHandler from "express-async-handler";
 import { uploadFoodImages as uploadFoodImagesMiddleware, getFileUrl } from "../s3Config.js";
+import User from "../models/userModel.js";
+import { notify } from "../services/notification.service.js";
 
 const uploadFoodImages = asyncHandler(async (req, res) => {
     const files = req.files;
@@ -68,12 +71,12 @@ const CreateFoodInfo=asyncHandler(async(req , res)=>{
         email
     };
 
-    // Helper function to generate unique 6-character alphanumeric tokens
+    // Helper function to generate unique 6-digit numeric verification code
     const generateUniqueToken = async () => {
         let token;
         let exists = true;
         while (exists) {
-            token = Math.random().toString(36).substring(2, 8).toUpperCase();
+            token = Math.floor(100000 + Math.random() * 900000).toString();
             const found = await FoodInfo.findOne({ verificationToken: token });
             if (!found) exists = false;
         }
@@ -82,13 +85,74 @@ const CreateFoodInfo=asyncHandler(async(req , res)=>{
 
     const verificationToken = await generateUniqueToken();
 
+    const isDirectDonation = ngoPreference && ngoPreference !== 'random';
+    const initialStatus = isDirectDonation ? 'PENDING_NGO_ACCEPTANCE' : 'pending';
+
     const foodInfo=await FoodInfo.create({
         foodItemDetails,
         contactDetails,
         ngoPreference,
         verificationToken,
-        status: 'pending'
+        status: initialStatus
     })
+
+    await notify({
+        receiverId: req.user._id,
+        receiverRole: 'donor',
+        title: 'Donation Submitted',
+        message: isDirectDonation 
+            ? 'Your food donation has been submitted directly to the preferred NGO.' 
+            : 'Your food donation has been submitted and is pending review.',
+        type: 'DONATION_CREATED',
+        entityType: 'FoodInfo',
+        entityId: foodInfo._id,
+        priority: 'medium'
+    });
+
+    if (isDirectDonation) {
+        const ngo = await Ngo.findById(ngoPreference);
+        if (ngo && ngo.registeredBy) {
+            await notify({
+                receiverId: ngo.registeredBy,
+                receiverRole: 'ngo',
+                title: 'New Direct Donation Received',
+                message: `You have received a new direct food donation from ${contactPersonName}. Please accept or reject it.`,
+                type: 'NEW_DONATION_ASSIGNED',
+                entityType: 'FoodInfo',
+                entityId: foodInfo._id,
+                priority: 'high'
+            });
+        }
+        // Also notify admins of this direct donation activity
+        const admins = await User.find({ isAdmin: true });
+        for (const admin of admins) {
+            await notify({
+                receiverId: admin._id,
+                receiverRole: 'admin',
+                title: 'New Direct Food Donation',
+                message: `A direct food donation has been submitted to NGO "${ngo?.ngoName || 'NGO'}".`,
+                type: 'NEW_DONATION_SUBMITTED',
+                entityType: 'FoodInfo',
+                entityId: foodInfo._id,
+                priority: 'medium'
+            });
+        }
+    } else {
+        const admins = await User.find({ isAdmin: true });
+        for (const admin of admins) {
+            await notify({
+                receiverId: admin._id,
+                receiverRole: 'admin',
+                title: 'New Food Donation',
+                message: 'A new food donation has been submitted for approval.',
+                type: 'NEW_DONATION_SUBMITTED',
+                entityType: 'FoodInfo',
+                entityId: foodInfo._id,
+                priority: 'high'
+            });
+        }
+    }
+
    return res.status(201).json({foodInfo,message:"Food info created successfully"});
 })
 
@@ -192,7 +256,7 @@ const verifyDonationPickup = asyncHandler(async (req, res) => {
         throw new Error("Invalid verification token");
     }
 
-    if (donation.status === 'done') {
+    if (donation.status === 'done' || donation.status === 'COMPLETED') {
         res.status(400);
         throw new Error("Donation is already completed");
     }
@@ -222,9 +286,88 @@ const verifyDonationPickup = asyncHandler(async (req, res) => {
         }
     }
 
-    donation.status = 'done';
+    donation.status = 'COMPLETED';
     donation.completedAt = new Date();
+    
+    // Save which NGO picked up this food donation
+    if (!req.user.isAdmin) {
+        const userNgo = await Ngo.findOne({ registeredBy: req.user._id });
+        if (userNgo) {
+            donation.pickedUpByNgo = userNgo._id;
+        }
+    }
+
     await donation.save();
+
+    // Mark the corresponding NgoFoodRequest as completed (fulfilled)
+    if (donation.verificationToken) {
+        const request = await NgoFoodRequest.findOne({ verificationToken: donation.verificationToken.toUpperCase() });
+        if (request && request.status !== 'fulfilled' && request.status !== 'COMPLETED') {
+            request.status = 'COMPLETED';
+            request.fulfilledAt = new Date();
+            await request.save();
+
+            // Notify the NGO representative who requested the food
+            if (request.requestedBy) {
+                await notify({
+                    receiverId: request.requestedBy,
+                    receiverRole: 'ngo',
+                    title: 'Food Request Fulfilled',
+                    message: 'Your NGO food request fulfillment has been verified and completed.',
+                    type: 'FOOD_REQUEST_FULFILLED',
+                    entityType: 'NgoFoodRequest',
+                    entityId: request._id,
+                    priority: 'medium'
+                });
+            }
+        }
+    }
+
+    const donorId = donation.foodItemDetails?.[0]?.donorId;
+    if (donorId) {
+        await notify({
+            receiverId: donorId,
+            receiverRole: 'donor',
+            title: 'Donation Completed',
+            message: 'Your food donation pickup has been verified and marked as completed.',
+            type: 'DONATION_COMPLETED',
+            entityType: 'FoodInfo',
+            entityId: donation._id,
+            priority: 'medium'
+        });
+    }
+
+    // Notify the picking-up NGO representative
+    if (donation.pickedUpByNgo) {
+        const ngo = await Ngo.findById(donation.pickedUpByNgo);
+        if (ngo && ngo.registeredBy) {
+            await notify({
+                receiverId: ngo.registeredBy,
+                receiverRole: 'ngo',
+                title: 'Donation Pickup Verified',
+                message: `You have successfully verified and completed the pickup for donation #${String(donation._id).slice(-10).toUpperCase()}.`,
+                type: 'DONATION_COMPLETED',
+                entityType: 'FoodInfo',
+                entityId: donation._id,
+                priority: 'medium'
+            });
+        }
+    }
+
+    // Notify all admins to trigger real-time dashboard updates
+    const admins = await User.find({ isAdmin: true });
+    for (const admin of admins) {
+        await notify({
+            receiverId: admin._id,
+            receiverRole: 'admin',
+            title: 'Donation Completed',
+            message: `Food donation #${String(donation._id).slice(-10).toUpperCase()} has been successfully picked up and completed.`,
+            type: 'DONATION_COMPLETED',
+            entityType: 'FoodInfo',
+            entityId: donation._id,
+            priority: 'medium'
+        });
+    }
 
     res.status(200).json({
         message: "Donation verified and marked as completed successfully!",
@@ -232,7 +375,172 @@ const verifyDonationPickup = asyncHandler(async (req, res) => {
     });
 });
 
-export {CreateFoodInfo,getFoodInfoById,updateFoodInfo,deleteFoodInfo,uploadFoodImages,verifyDonationPickup};
+const getNgoAssignedDonations = asyncHandler(async (req, res) => {
+    const userNgo = await Ngo.findOne({ registeredBy: req.user._id });
+    if (!userNgo) {
+        return res.status(200).json({
+            donations: [],
+            message: "No NGO associated with your account."
+        });
+    }
+
+    const donations = await FoodInfo.find({
+        $or: [
+            { ngoPreference: userNgo._id },
+            { pickedUpByNgo: userNgo._id }
+        ]
+    }).sort({ createdAt: -1 })
+      .populate({
+         path: 'foodItemDetails.donorId',
+         select: 'firstName surname email phone'
+      });
+
+    return res.status(200).json({
+        donations,
+        message: "Assigned donations fetched successfully"
+    });
+});
+
+const acceptDirectDonation = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const donation = await FoodInfo.findById(id);
+
+    if (!donation) {
+        res.status(404);
+        throw new Error("Donation not found");
+    }
+
+    if (donation.status !== 'PENDING_NGO_ACCEPTANCE') {
+        res.status(400);
+        throw new Error("Donation is not in pending NGO acceptance status");
+    }
+
+    const userNgo = await Ngo.findOne({ registeredBy: req.user._id });
+    if (!userNgo) {
+        res.status(403);
+        throw new Error("Only approved NGO representatives can accept donations");
+    }
+
+    if (donation.ngoPreference.toString() !== userNgo._id.toString()) {
+        res.status(403);
+        throw new Error("This donation is assigned to a different NGO");
+    }
+
+    donation.status = 'NGO_ACCEPTED';
+    await donation.save();
+
+    // Notify donor
+    const donorId = donation.foodItemDetails?.[0]?.donorId;
+    if (donorId) {
+        await notify({
+            receiverId: donorId,
+            receiverRole: 'donor',
+            title: 'Donation Accepted',
+            message: `Your donation has been accepted by ${userNgo.ngoName}.`,
+            type: 'DONATION_APPROVED',
+            entityType: 'FoodInfo',
+            entityId: donation._id,
+            priority: 'high'
+        });
+    }
+
+    // Notify NGO
+    await notify({
+        receiverId: req.user._id,
+        receiverRole: 'ngo',
+        title: 'Donation Accepted',
+        message: `You have successfully accepted the direct donation from ${donation.contactDetails?.contactPersonName}.`,
+        type: 'DONATION_APPROVED',
+        entityType: 'FoodInfo',
+        entityId: donation._id,
+        priority: 'medium'
+    });
+
+    // Notify Admins
+    const admins = await User.find({ isAdmin: true });
+    for (const admin of admins) {
+        await notify({
+            receiverId: admin._id,
+            receiverRole: 'admin',
+            title: 'Direct Donation Accepted',
+            message: `NGO "${userNgo.ngoName}" has accepted the direct food donation from ${donation.contactDetails?.contactPersonName}.`,
+            type: 'DONATION_APPROVED',
+            entityType: 'FoodInfo',
+            entityId: donation._id,
+            priority: 'medium'
+        });
+    }
+
+    res.status(200).json({
+        message: "Donation accepted successfully!",
+        donation
+    });
+});
+
+const rejectDirectDonation = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { rejectionReason } = req.body;
+    const donation = await FoodInfo.findById(id);
+
+    if (!donation) {
+        res.status(404);
+        throw new Error("Donation not found");
+    }
+
+    if (donation.status !== 'PENDING_NGO_ACCEPTANCE') {
+        res.status(400);
+        throw new Error("Donation is not in pending NGO acceptance status");
+    }
+
+    const userNgo = await Ngo.findOne({ registeredBy: req.user._id });
+    if (!userNgo) {
+        res.status(403);
+        throw new Error("Only approved NGO representatives can reject donations");
+    }
+
+    if (donation.ngoPreference.toString() !== userNgo._id.toString()) {
+        res.status(403);
+        throw new Error("This donation is assigned to a different NGO");
+    }
+
+    donation.status = 'rejected';
+    donation.rejectedReason = rejectionReason || "Rejected by NGO";
+    donation.rejectedBy = req.user._id;
+    donation.rejectedAt = new Date();
+    await donation.save();
+
+    // Notify donor
+    const donorId = donation.foodItemDetails?.[0]?.donorId;
+    if (donorId) {
+        await notify({
+            receiverId: donorId,
+            receiverRole: 'donor',
+            title: 'Donation Rejected by NGO',
+            message: `Your donation was rejected by ${userNgo.ngoName}. Reason: ${donation.rejectedReason}`,
+            type: 'DONATION_REJECTED',
+            entityType: 'FoodInfo',
+            entityId: donation._id,
+            priority: 'high'
+        });
+    }
+
+    res.status(200).json({
+        message: "Donation rejected successfully",
+        donation
+    });
+});
+
+export {
+    CreateFoodInfo,
+    getFoodInfoById,
+    updateFoodInfo,
+    deleteFoodInfo,
+    uploadFoodImages,
+    verifyDonationPickup,
+    getNgoAssignedDonations,
+    acceptDirectDonation,
+    rejectDirectDonation
+};
 
 
 

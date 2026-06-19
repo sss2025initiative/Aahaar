@@ -2,12 +2,6 @@
 import { useEffect, useState } from 'react';
 
 const ICONS = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
-const COLORS = {
-  success: 'var(--color-green)',
-  error: 'var(--color-red)',
-  info: 'var(--color-teal)',
-  warning: 'var(--color-yellow)',
-};
 
 let toastQueue = [];
 let listeners = [];
@@ -46,14 +40,14 @@ export default function Toast() {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className="toast-item"
-          style={{ '--toast-color': COLORS[toast.type] }}
+          className={`toast toast--${toast.type}`}
+          style={{ '--duration': `${toast.duration}ms` }}
         >
-          <span className="toast-icon" style={{ color: COLORS[toast.type] }}>
+          <span className="toast__icon">
             {ICONS[toast.type]}
           </span>
-          <span className="toast-message">{toast.message}</span>
-          <button className="toast-close" onClick={() => dismissToast(toast.id)}>
+          <span className="toast__message">{toast.message}</span>
+          <button className="toast__close" onClick={() => dismissToast(toast.id)}>
             ✕
           </button>
         </div>

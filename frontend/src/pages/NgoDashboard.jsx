@@ -140,9 +140,11 @@ export default function NgoDashboard() {
   const navigate = useNavigate();
   const [ngo, setNgo] = useState(null);
   const [requests, setRequests] = useState([]);
+  const [assignedDonations, setAssignedDonations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('overview'); // overview | request | history
+  const [tab, setTab] = useState('overview'); // overview | request | donations | history
   const [statusFilter, setStatusFilter] = useState('all');
+  const [donationStatusFilter, setDonationStatusFilter] = useState('all');
   const [submitting, setSubmitting] = useState(false);
   
   // Verification Scanner States
@@ -158,7 +160,7 @@ export default function NgoDashboard() {
   const [foodItems, setFoodItems] = useState([{ ...emptyItem }]);
   const [form, setForm] = useState({
     contactPersonName: user?.firstName ? `${user.firstName} ${user.surname || ''}`.trim() : '',
-    phoneNumber: '',
+    phoneNumber: user?.phone || '',
     email: user?.email || '',
     deliveryAddress: '',
     city: user?.city || '',
@@ -171,9 +173,13 @@ export default function NgoDashboard() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/aahar/ngo-food-requests/my-requests');
-      setNgo(res.data?.ngo || null);
-      setRequests(res.data?.requests || []);
+      const [resRequests, resDonations] = await Promise.all([
+        api.get('/aahar/ngo-food-requests/my-requests'),
+        api.get('/aahar/foodInfo/my-assigned-donations')
+      ]);
+      setNgo(resRequests.data?.ngo || null);
+      setRequests(resRequests.data?.requests || []);
+      setAssignedDonations(resDonations.data?.donations || []);
     } catch {
       showToast('Could not load NGO data', 'error');
     } finally {
@@ -224,16 +230,42 @@ export default function NgoDashboard() {
     }
   };
 
+  const handleAcceptDonation = async (id) => {
+    try {
+      await api.put(`/aahar/foodInfo/accept-donation/${id}`);
+      showToast('Donation accepted successfully! 🎉', 'success');
+      fetchData();
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to accept donation', 'error');
+    }
+  };
+
+  const handleRejectDonation = async (id) => {
+    const reason = prompt("Please enter the reason for rejection (optional):");
+    if (reason === null) return; // user cancelled
+    try {
+      await api.put(`/aahar/foodInfo/reject-donation/${id}`, { rejectionReason: reason });
+      showToast('Donation rejected', 'info');
+      fetchData();
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to reject donation', 'error');
+    }
+  };
+
   // Initial load — inlined to satisfy React Compiler (no external setState call in effect body)
   useEffect(() => {
     let active = true;
     (async () => {
       setLoading(true);
       try {
-        const res = await api.get('/aahar/ngo-food-requests/my-requests');
+        const [resRequests, resDonations] = await Promise.all([
+          api.get('/aahar/ngo-food-requests/my-requests'),
+          api.get('/aahar/foodInfo/my-assigned-donations')
+        ]);
         if (active) {
-          setNgo(res.data?.ngo || null);
-          setRequests(res.data?.requests || []);
+          setNgo(resRequests.data?.ngo || null);
+          setRequests(resRequests.data?.requests || []);
+          setAssignedDonations(resDonations.data?.donations || []);
         }
       } catch {
         if (active) showToast('Could not load NGO data', 'error');
@@ -243,6 +275,29 @@ export default function NgoDashboard() {
     })();
     return () => { active = false; }; // cleanup: ignore stale responses
   }, []);
+
+  // Listen for socket notification events to trigger real-time dashboard data refresh
+  useEffect(() => {
+    const handleNotification = (e) => {
+      const notification = e.detail;
+      // Refresh NGO requests when a request is accepted, approved, rejected, or fulfilled
+      if (
+        notification &&
+        (notification.type === 'FOOD_REQUEST_ACCEPTED' ||
+         notification.type === 'FOOD_REQUEST_FULFILLED' ||
+         notification.type === 'FOOD_REQUEST_APPROVED' ||
+         notification.type === 'FOOD_REQUEST_REJECTED' ||
+         notification.type === 'DONATION_APPROVED' ||
+         notification.type === 'DONATION_COMPLETED')
+      ) {
+        fetchData();
+      }
+    };
+    window.addEventListener('notification-received', handleNotification);
+    return () => {
+      window.removeEventListener('notification-received', handleNotification);
+    };
+  }, [fetchData]);
 
   const handleLogout = async () => {
     await logout();
@@ -355,7 +410,20 @@ export default function NgoDashboard() {
               className={`dashboard-sidebar__nav-item ${tab === 'request' ? 'dashboard-sidebar__nav-item--active' : ''}`}
               onClick={() => setTab('request')}
             >
-              <span>🍱</span> Request Food
+              <span>🥣</span> Request Food
+            </button>
+          )}
+          {ngo?.isApproved && (
+            <button
+              className={`dashboard-sidebar__nav-item ${tab === 'donations' ? 'dashboard-sidebar__nav-item--active' : ''}`}
+              onClick={() => setTab('donations')}
+            >
+              <span>🎁</span> Direct Donations
+              {assignedDonations.filter(d => d.status === 'approved').length > 0 && tab !== 'donations' && (
+                <span style={{ marginLeft: 'auto', background: 'rgba(6,182,212,0.15)', color: 'var(--color-teal)', fontSize: '0.72rem', fontWeight: 700, padding: '1px 7px', borderRadius: 99 }}>
+                  {assignedDonations.filter(d => d.status === 'approved').length}
+                </span>
+              )}
             </button>
           )}
           <button
@@ -438,8 +506,16 @@ export default function NgoDashboard() {
             className={`dashboard-mobile-nav-item ${tab === 'request' ? 'dashboard-mobile-nav-item--active' : ''}`}
             onClick={() => setTab('request')}
           >
-            🍱 Request Food
+            🥣 Request
           </button>
+          {ngo?.isApproved && (
+            <button 
+              className={`dashboard-mobile-nav-item ${tab === 'donations' ? 'dashboard-mobile-nav-item--active' : ''}`}
+              onClick={() => setTab('donations')}
+            >
+              🎁 Donations
+            </button>
+          )}
           <button 
             className={`dashboard-mobile-nav-item ${tab === 'history' ? 'dashboard-mobile-nav-item--active' : ''}`}
             onClick={() => setTab('history')}
@@ -459,20 +535,24 @@ export default function NgoDashboard() {
           <div>
             <div className="breadcrumb">
               <span>🏢</span><span>/</span>
-              <span>{{ overview: 'Overview', request: 'Food Request', history: 'History' }[tab]}</span>
+              <span>{{ overview: 'Overview', request: 'Food Request', donations: 'Direct Donations', history: 'History' }[tab]}</span>
             </div>
             <h1 className="dashboard-header__title">
               {tab === 'overview' && '📊 NGO Overview'}
               {tab === 'request' && '🍱 Request Food'}
+              {tab === 'donations' && '🎁 Direct Donations'}
               {tab === 'history' && '📜 Request History'}
             </h1>
             <p className="dashboard-header__subtitle">
               {tab === 'overview' && 'Your NGO status and impact at a glance'}
               {tab === 'request' && 'Submit a food request to the admin for fulfillment'}
+              {tab === 'donations' && 'Manage and verify food donations preferred/assigned directly to your NGO'}
               {tab === 'history' && 'Track all your food requests and their status'}
             </p>
           </div>
           {tab === 'overview' && <button className="btn-ghost" onClick={fetchData} style={{ fontSize: '0.85rem' }}>🔄 Refresh</button>}
+          {tab === 'donations' && <button className="btn-ghost" onClick={fetchData} style={{ fontSize: '0.85rem' }}>🔄 Refresh</button>}
+          {tab === 'history' && <button className="btn-ghost" onClick={fetchData} style={{ fontSize: '0.85rem' }}>🔄 Refresh</button>}
         </div>
 
         {/* ─── OVERVIEW ─── */}
@@ -851,6 +931,7 @@ export default function NgoDashboard() {
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, color: 'var(--text-secondary)' }}>
                             <div>Donor: <strong style={{ color: 'var(--text-primary)' }}>{req.acceptedBy.firstName} {req.acceptedBy.surname}</strong></div>
+                            <div>Phone: <strong style={{ color: 'var(--text-primary)' }}>{req.acceptedBy.phone || 'N/A'}</strong></div>
                             <div>Email: <strong style={{ color: 'var(--text-primary)' }}>{req.acceptedBy.email}</strong></div>
                             <div style={{ gridColumn: '1 / -1', marginTop: 4 }}>
                               Expected Delivery: <strong style={{ color: 'var(--text-primary)' }}>{new Date(req.expectedDeliveryDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>
@@ -913,6 +994,171 @@ export default function NgoDashboard() {
             )}
           </div>
         )}
+
+        {/* ─── DIRECT DONATIONS ─── */}
+        {tab === 'donations' && (() => {
+          const isDonationStatusMatch = (status, filter) => {
+            if (filter === 'all') return true;
+            const s = (status || '').toLowerCase();
+            if (filter === 'done') {
+              return s === 'done' || s === 'completed';
+            }
+            if (filter === 'approved') {
+              return s === 'approved' || s === 'ngo_accepted' || s === 'ngoaccepted' || s === 'request_accepted' || s === 'requestaccepted' || s === 'pending_ngo_acceptance' || s === 'pendingngoacceptance' || s === 'pickup_in_progress' || s === 'pickupinprogress' || s === 'verified';
+            }
+            return s === filter;
+          };
+          const filteredDonations = assignedDonations.filter(d => isDonationStatusMatch(d.status, donationStatusFilter));
+          return (
+            <div className="dashboard-section" style={{ animation: 'fadeInUp 0.3s ease' }}>
+              <div className="filter-bar">
+                {['all', 'approved', 'done'].map(f => (
+                  <button
+                    key={f}
+                    className={`filter-btn ${donationStatusFilter === f ? 'filter-btn--active' : ''}`}
+                    onClick={() => setDonationStatusFilter(f)}
+                  >
+                    {f === 'all' ? 'All' : f === 'approved' ? 'Pending Pickup' : 'Completed'}
+                    {f !== 'all' && (
+                      <span style={{ marginLeft: 6, background: 'rgba(255,255,255,0.08)', padding: '0 6px', borderRadius: 99, fontSize: '0.7rem' }}>
+                        {assignedDonations.filter(d => isDonationStatusMatch(d.status, f)).length}
+                      </span>
+                    )}
+                  </button>
+                ))}
+                <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {filteredDonations.length} result(s)
+                </span>
+              </div>
+
+              {loading ? (
+                <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  Loading assigned donations...
+                </div>
+              ) : filteredDonations.length === 0 ? (
+                <div className="empty-state" style={{ margin: '32px 0' }}>
+                  <div className="empty-state__icon">🎁</div>
+                  <h3 className="empty-state__title">No donations found</h3>
+                  <p className="empty-state__text">There are no food donations matching this status.</p>
+                </div>
+              ) : (
+                <div style={{ padding: '0 24px 24px', display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
+                  {filteredDonations.map((donation) => {
+                    const donor = donation.foodItemDetails?.[0]?.donorId;
+                    const donorName = donor ? `${donor.firstName} ${donor.surname || ''}`.trim() : (donation.contactDetails?.contactPersonName || donation.contactPersonName || 'Donor');
+                    const donorPhone = donor?.phone || donation.contactDetails?.phoneNumber || 'N/A';
+                    const donorEmail = donor?.email || donation.contactDetails?.email || 'N/A';
+                    
+                    return (
+                      <div key={donation._id} className="donation-card" style={{ borderLeft: '4px solid var(--color-teal)' }}>
+                        <div className="donation-card__header">
+                          <div>
+                            <div className="donation-card__id">#{String(donation._id).slice(-10).toUpperCase()}</div>
+                            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                              Donor: <strong style={{ color: 'var(--text-primary)' }}>{donorName}</strong>
+                            </div>
+                          </div>
+                          {donation.status === 'done' || donation.status === 'COMPLETED' ? (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 5,
+                              padding: '4px 12px', borderRadius: 99, fontSize: '0.78rem', fontWeight: 700,
+                              background: 'rgba(34,197,94,0.15)', color: '#4ade80'
+                            }}>
+                              🚚 Completed
+                            </span>
+                          ) : donation.status === 'PENDING_NGO_ACCEPTANCE' ? (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 5,
+                              padding: '4px 12px', borderRadius: 99, fontSize: '0.78rem', fontWeight: 700,
+                              background: 'rgba(234,179,8,0.15)', color: '#fbbf24'
+                            }}>
+                              ⏳ Awaiting Your Acceptance
+                            </span>
+                          ) : donation.status === 'approved' || donation.status === 'NGO_ACCEPTED' || donation.status === 'REQUEST_ACCEPTED' ? (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 5,
+                              padding: '4px 12px', borderRadius: 99, fontSize: '0.78rem', fontWeight: 700,
+                              background: 'rgba(6,182,212,0.15)', color: '#22d3ee'
+                            }}>
+                              ⏳ Ready for Pickup
+                            </span>
+                          ) : (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 5,
+                              padding: '4px 12px', borderRadius: 99, fontSize: '0.78rem', fontWeight: 700,
+                              background: 'rgba(234,179,8,0.15)', color: '#fbbf24'
+                            }}>
+                              ⏳ Awaiting Admin Approval
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="donation-card__items">
+                          {(donation.foodItemDetails || []).map((item, i) => (
+                            <span key={i} className="donation-card__item-tag" style={{ background: 'rgba(6,182,212,0.1)', color: '#22d3ee' }}>
+                              {item.foodName} · {item.quantity}{item.quantityType}
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="donation-card__meta">
+                          <span className="donation-card__meta-item">📍 Address: {donation.contactDetails?.fullAddress}, {donation.contactDetails?.city}</span>
+                          <span className="donation-card__meta-item">📅 Submitted: {new Date(donation.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        </div>
+
+                        <div style={{ marginTop: 12, fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.01)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div style={{ fontWeight: 700, color: 'var(--color-teal)', marginBottom: 2 }}>📞 Donor Contact Info:</div>
+                          <div>Phone: <strong>{donorPhone}</strong></div>
+                          <div>Email: <strong>{donorEmail}</strong></div>
+                        </div>
+
+                        {donation.status === 'PENDING_NGO_ACCEPTANCE' && (
+                          <div style={{ display: 'flex', gap: 10, marginTop: 14, borderTop: '1px solid var(--border-color)', paddingTop: 12 }}>
+                            <button
+                              className="btn-primary"
+                              style={{ fontSize: '0.8rem', padding: '7px 16px', flex: 1, background: 'var(--grad-teal)', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: 6, fontWeight: 600 }}
+                              onClick={() => handleAcceptDonation(donation._id)}
+                            >
+                              ✓ Accept Donation
+                            </button>
+                            <button
+                              className="btn-danger"
+                              style={{ fontSize: '0.8rem', padding: '7px 16px', flex: 1, background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', cursor: 'pointer', borderRadius: 6, fontWeight: 600 }}
+                              onClick={() => handleRejectDonation(donation._id)}
+                            >
+                              ✕ Reject
+                            </button>
+                          </div>
+                        )}
+
+                        {donation.status !== 'done' && donation.status !== 'COMPLETED' && donation.status !== 'PENDING_NGO_ACCEPTANCE' && donation.status !== 'rejected' && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, borderTop: '1px solid var(--border-color)', paddingTop: 12 }}>
+                            <div>
+                              Code: <strong style={{ fontFamily: 'monospace', fontSize: '0.95rem', color: 'var(--color-orange)' }}>{donation.verificationToken}</strong>
+                            </div>
+                            <button
+                              className="btn-primary"
+                              style={{ fontSize: '0.8rem', padding: '7px 16px', background: 'var(--grad-teal)', border: 'none', color: '#fff' }}
+                              onClick={() => {
+                                setScannerOpen(true);
+                                setVerifyTab('scan');
+                                setScannedData(null);
+                                setManualToken(donation.verificationToken || '');
+                                setVerifyingRequestId(null);
+                              }}
+                            >
+                              📷 Verify Pickup
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </main>
 
       {/* Verify Pickup Scanner Modal */}
@@ -1010,11 +1256,13 @@ export default function NgoDashboard() {
                       onScanSuccess={(decodedText) => {
                         try {
                           const parsed = JSON.parse(decodedText);
-                          if (parsed.id && parsed.token) {
-                            if (parsed.type === 'request') {
-                              handleVerifyRequestFulfillment(parsed.id, parsed.token);
+                          const id = parsed.donationId || parsed.requestId || parsed.id;
+                          const token = parsed.verificationCode || parsed.token;
+                          if (id && token) {
+                            if (parsed.type === 'request' || !parsed.donationId) {
+                              handleVerifyRequestFulfillment(id, token);
                             } else {
-                              handleVerifyPickup(parsed.id, parsed.token);
+                              handleVerifyPickup(id, token);
                             }
                           } else {
                             showToast("Invalid QR structure", "error");
