@@ -328,14 +328,17 @@ const acceptNgoFoodRequest = asyncHandler(async (req, res) => {
     throw new Error("Food request not found.");
   }
 
-  if (request.status !== "approved" && request.status !== "pending") {
-    res.status(400);
-    throw new Error("Only pending or approved requests can be accepted for donation.");
-  }
-
   if (request.acceptedBy) {
     res.status(400);
+    if (request.acceptedBy.toString() === req.user._id.toString()) {
+      throw new Error("You have already accepted this food request.");
+    }
     throw new Error("This request has already been accepted by another donor.");
+  }
+
+  if (request.status !== "approved" && request.status !== "pending") {
+    res.status(400);
+    throw new Error("This request cannot be accepted because it is no longer open.");
   }
 
   // Preserve the existing verification token if it was generated during request creation, otherwise generate a new one
