@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import { showToast } from '../components/Toast';
@@ -250,6 +251,71 @@ function ReviewDetailsModal({ donation, onApprove, onReject, onMarkAsDone, onClo
               )}
             </>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VerificationModal({ onConfirm, onCancel }) {
+  const [code, setCode] = useState('');
+  const [scanning, setScanning] = useState(false);
+
+  useEffect(() => {
+    if (scanning) {
+      const scanner = new Html5QrcodeScanner("reader", { qrbox: { width: 250, height: 250 }, fps: 5 }, false);
+      scanner.render(
+        (text) => {
+          scanner.clear().catch(e => console.error(e));
+          setScanning(false);
+          try {
+            const data = JSON.parse(text);
+            if (data.verificationCode) setCode(data.verificationCode);
+            else setCode(text);
+          } catch {
+            setCode(text);
+          }
+        },
+        () => {}
+      );
+      return () => { scanner.clear().catch(e => console.error(e)); };
+    }
+  }, [scanning]);
+
+  return (
+    <div className="modal-overlay" onClick={onCancel} style={{ zIndex: 200 }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+        <h3 className="modal__title" style={{ fontSize: '1.25rem', marginBottom: 8 }}>Verify Donation Pickup</h3>
+        <p className="modal__text" style={{ marginBottom: 16 }}>Enter the 6-digit verification code from the donor's dashboard, or scan their QR code.</p>
+        
+        {scanning ? (
+          <div style={{ marginBottom: 16 }}>
+            <div id="reader" style={{ width: '100%', borderRadius: 8, overflow: 'hidden' }}></div>
+            <button className="btn-ghost" onClick={() => setScanning(false)} style={{ marginTop: 12, width: '100%' }}>Cancel Scan</button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+            <button className="btn-ghost" onClick={() => setScanning(true)} style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, borderRadius: 8, fontWeight: 600 }}>
+              📷 Scan QR Code
+            </button>
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', margin: '4px 0' }}>— OR —</div>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Enter 6-digit code" 
+              value={code} 
+              onChange={e => setCode(e.target.value.toUpperCase())}
+              style={{ textAlign: 'center', fontSize: '1.2rem', letterSpacing: 4, fontWeight: 700, padding: 12 }}
+              maxLength={6}
+            />
+          </div>
+        )}
+
+        <div className="modal__actions" style={{ marginTop: 24, borderTop: '1px solid var(--border-color)', paddingTop: 16 }}>
+          <button className="btn-ghost" onClick={onCancel}>Cancel</button>
+          <button className="btn-primary" style={{ background: 'var(--grad-teal)' }} onClick={() => onConfirm(code)} disabled={!code && !scanning}>
+            Verify & Complete
+          </button>
         </div>
       </div>
     </div>
@@ -655,6 +721,7 @@ export default function AdminDashboard() {
   const [rejectModal, setRejectModal] = useState(null);
   const [ngoRejectModal, setNgoRejectModal] = useState(null);
   const [reviewDonation, setReviewDonation] = useState(null);
+  const [verificationModal, setVerificationModal] = useState(null);
   const [donationFilter, setDonationFilter] = useState(() => location.state?.filter || 'pending');
   const [directDonationFilter, setDirectDonationFilter] = useState('all');
   const [ngoRequestFilter, setNgoRequestFilter] = useState(() => location.state?.ngoRequestFilter || 'pending');
@@ -792,7 +859,17 @@ export default function AdminDashboard() {
   // Donation actions
   const approveDonation = async (id) => { try { await api.put(`/aahar/admin/food-donations/${id}/approve`); showToast('Donation approved ✅', 'success'); fetchDonations(); } catch { showToast('Failed', 'error'); } };
   const rejectDonation = async (id, reason) => { try { await api.put(`/aahar/admin/food-donations/${id}/reject`, { rejectionReason: reason }); showToast('Donation rejected', 'success'); setRejectModal(null); fetchDonations(); } catch { showToast('Failed', 'error'); } };
-  const markAsDone = async (id) => { try { await api.put(`/aahar/admin/food-donations/${id}/done`); showToast('Donation marked as Done ✅', 'success'); fetchDonations(); } catch { showToast('Failed to mark donation as done', 'error'); } };
+  const markAsDone = async (id, code) => { 
+    try { 
+      const payload = code ? { verificationCode: code } : {};
+      await api.put(`/aahar/admin/food-donations/${id}/done`, payload); 
+      showToast('Donation marked as Done ✅', 'success'); 
+      setVerificationModal(null);
+      fetchDonations(); 
+    } catch (err) { 
+      showToast(err.response?.data?.message || 'Failed to mark donation as done', 'error'); 
+    } 
+  };
 
   // NGO actions
   const approveNgo = async (id) => { try { await api.put(`/aahar/admin/approve-ngo/${id}`); showToast('NGO approved ✅ — NGO can now submit food requests', 'success'); fetchNgos(); fetchStats(); } catch { showToast('Failed to approve NGO', 'error'); } };
@@ -1197,7 +1274,7 @@ export default function AdminDashboard() {
                                 </>
                               )}
                               {(d.status === 'approved' || d.status === 'NGO_ACCEPTED') && (
-                                <ActionBtn icon="📦" label="Mark Done" onClick={() => markAsDone(d._id)} variant="teal" />
+                                <ActionBtn icon="📦" label="Mark Done" onClick={() => setVerificationModal(d._id)} variant="teal" />
                               )}
                             </div>
                           </td>
@@ -1388,7 +1465,7 @@ export default function AdminDashboard() {
                             </>
                           )}
                           {(sNorm === 'NGOACCEPTED' || sNorm === 'APPROVED' || sNorm === 'REQUESTACCEPTED') && (
-                            <ActionBtn icon="📦" label="Mark as Done" onClick={() => markAsDone(d._id)} variant="teal" />
+                            <ActionBtn icon="📦" label="Mark as Done" onClick={() => setVerificationModal(d._id)} variant="teal" />
                           )}
                         </div>
                       </div>
@@ -1815,7 +1892,7 @@ export default function AdminDashboard() {
             setReviewDonation(null);
           }}
           onMarkAsDone={() => {
-            markAsDone(reviewDonation._id);
+            setVerificationModal(reviewDonation._id);
             setReviewDonation(null);
           }}
           onUpdateQuantities={() => {
@@ -1827,6 +1904,14 @@ export default function AdminDashboard() {
             });
           }}
           onClose={() => setReviewDonation(null)}
+        />
+      )}
+
+      {/* Verification Modal */}
+      {verificationModal && (
+        <VerificationModal
+          onConfirm={(code) => markAsDone(verificationModal, code)}
+          onCancel={() => setVerificationModal(null)}
         />
       )}
     </div>

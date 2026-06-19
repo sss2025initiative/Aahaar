@@ -417,11 +417,18 @@ const triggerInReview = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const completeFoodDonation = asyncHandler(async (req, res) => {
   const { donationId } = req.params;
+  const { verificationCode } = req.body;
 
   const donation = await FoodInfo.findById(donationId);
   if (!donation) {
     res.status(404);
     throw new Error("Donation not found");
+  }
+
+  // Check verification code if it exists
+  if (donation.verificationToken && donation.verificationToken !== verificationCode) {
+    res.status(400);
+    throw new Error("Invalid verification code. Please scan the QR code again or check the manually entered code.");
   }
 
   donation.status = 'done';
